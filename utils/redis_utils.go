@@ -4,10 +4,10 @@
 package utils
 
 import (
+	"fmt"
+	"github.com/garyburd/redigo/redis"
 	"strings"
 	"time"
-
-	"github.com/garyburd/redigo/redis"
 )
 
 var defaultTimeout = 1 * time.Second
@@ -20,29 +20,28 @@ func SlotsInfo(addr string, fromSlot, toSlot int) (map[int]int, error) {
 	}
 	defer c.Close()
 
-	var reply []interface{}
-	var val []interface{}
-
-	reply, err = redis.Values(c.Do("SLOTSINFO", fromSlot, toSlot-fromSlot+1))
-	if err != nil {
-		return nil, err
-	}
-
 	ret := make(map[int]int)
-	for {
-		if reply == nil || len(reply) == 0 {
-			break
-		}
-		if reply, err = redis.Scan(reply, &val); err != nil {
-			return nil, err
-		}
-		var slot, keyCount int
-		_, err := redis.Scan(val, &slot, &keyCount)
-		if err != nil {
-			return nil, err
-		}
-		ret[slot] = keyCount
+
+	for i := fromSlot; i <= toSlot; i++ {
+		ret[i] = 0
 	}
+
+	var reply []string
+
+	//we use info keyspace
+	reply, err = redis.Strings(c.Do("info", "keyspace"))
+	for _, s := range reply {
+		var index int
+		var number int
+		var extra string
+		if _, err = fmt.Sscanf(s, "db%d:keys=%d,%s", &index, &number, &extra); err != nil {
+			return nil, err
+		}
+		if fromSlot <= index && index <= toSlot {
+			ret[index] = number
+		}
+	}
+
 	return ret, nil
 }
 

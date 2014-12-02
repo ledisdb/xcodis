@@ -137,7 +137,7 @@ func (s *Server) handleMigrateState(slotIndex int, key []byte) error {
 
 	redisReader := redisConn.(*redispool.PooledConn).BufioReader()
 
-	err = WriteMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, key)
+	err = WriteMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, key, slotIndex)
 	if err != nil {
 		redisConn.Close()
 		log.Warningf("migrate key %s error", string(key))

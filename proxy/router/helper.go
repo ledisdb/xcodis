@@ -68,14 +68,14 @@ func validSlot(i int) bool {
 	return true
 }
 
-func WriteMigrateKeyCmd(w io.Writer, addr string, timeoutMs int, key []byte) error {
+func WriteMigrateKeyCmd(w io.Writer, addr string, timeoutMs int, key []byte, slotIndex int) error {
 	hostPort := strings.Split(addr, ":")
 	if len(hostPort) != 2 {
 		return errors.Errorf("invalid address " + addr)
 	}
 	respW := respcoding.NewRESPWriter(w)
-	err := respW.WriteCommand("slotsmgrttagone", hostPort[0], hostPort[1],
-		strconv.Itoa(int(timeoutMs)), string(key))
+	err := respW.WriteCommand("migrate", hostPort[0], hostPort[1],
+		string(key), strconv.Itoa(slotIndex), strconv.Itoa(int(timeoutMs)))
 	return errors.Trace(err)
 }
 
