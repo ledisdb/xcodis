@@ -167,6 +167,11 @@ func runCommand(cmd string, args []string) (err error) {
 	return fmt.Errorf("%s is not a valid command. See 'cconfig -h'", cmd)
 }
 
+func CreateZkConn() zkhelper.Conn {
+	conn, _ := zkhelper.ConnectToZk(zkAddr)
+	return conn
+}
+
 func main() {
 	log.SetLevelByString("info")
 
