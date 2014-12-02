@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wandoulabs/codis/pkg/utils"
+	"github.com/siddontang/xcodis/utils"
 
-	"github.com/wandoulabs/codis/pkg/models"
-	"github.com/wandoulabs/codis/pkg/proxy/parser"
-	"github.com/wandoulabs/codis/pkg/proxy/router/topology"
+	"github.com/siddontang/xcodis/models"
+	"github.com/siddontang/xcodis/proxy/parser"
+	"github.com/siddontang/xcodis/proxy/router/topology"
 
 	log "github.com/ngaut/logging"
 

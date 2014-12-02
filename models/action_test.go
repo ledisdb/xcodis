@@ -11,7 +11,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/ngaut/zkhelper"
 
-	"github.com/wandoulabs/codis/pkg/utils"
+	"github.com/siddontang/xcodis/utils"
 )
 
 var (

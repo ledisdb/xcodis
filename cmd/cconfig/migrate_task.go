@@ -10,8 +10,8 @@ import (
 
 	"container/list"
 
-	"github.com/wandoulabs/codis/pkg/models"
-	"github.com/wandoulabs/codis/pkg/utils"
+	"github.com/siddontang/xcodis/models"
+	"github.com/siddontang/xcodis/utils"
 
 	"github.com/juju/errors"
 

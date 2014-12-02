@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/wandoulabs/codis/pkg/models"
+	"github.com/siddontang/xcodis/models"
 
 	"github.com/docopt/docopt-go"
 	log "github.com/ngaut/logging"

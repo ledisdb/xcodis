@@ -11,8 +11,8 @@ import (
 	"runtime"
 	"strconv"
 
-	"github.com/wandoulabs/codis/pkg/proxy/router"
-	"github.com/wandoulabs/codis/pkg/utils"
+	"github.com/siddontang/xcodis/proxy/router"
+	"github.com/siddontang/xcodis/utils"
 
 	"github.com/docopt/docopt-go"
 	log "github.com/ngaut/logging"

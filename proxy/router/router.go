@@ -15,16 +15,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wandoulabs/codis/pkg/utils"
+	"github.com/siddontang/xcodis/utils"
 
-	topo "github.com/wandoulabs/codis/pkg/proxy/router/topology"
+	topo "github.com/siddontang/xcodis/proxy/router/topology"
 
-	"github.com/wandoulabs/codis/pkg/models"
-	"github.com/wandoulabs/codis/pkg/proxy/group"
-	"github.com/wandoulabs/codis/pkg/proxy/parser"
-	"github.com/wandoulabs/codis/pkg/proxy/redispool"
+	"github.com/siddontang/xcodis/models"
+	"github.com/siddontang/xcodis/proxy/group"
+	"github.com/siddontang/xcodis/proxy/parser"
+	"github.com/siddontang/xcodis/proxy/redispool"
 
-	"github.com/wandoulabs/codis/pkg/proxy/cachepool"
+	"github.com/siddontang/xcodis/proxy/cachepool"
 
 	"github.com/juju/errors"
 	stats "github.com/ngaut/gostats"
