@@ -55,7 +55,6 @@ options:
 commands:
 	server
 	slot
-	dashboard
 	action
 	proxy
 `
@@ -158,8 +157,6 @@ func runCommand(cmd string, args []string) (err error) {
 	switch cmd {
 	case "action":
 		return cmdAction(argv)
-	case "dashboard":
-		return cmdDashboard(argv)
 	case "server":
 		return cmdServer(argv)
 	case "proxy":
