@@ -26,22 +26,33 @@ var ErrInvalidAddr = errors.New("invalid addr")
 
 // return: success_count, remain_count, error
 // slotsmgrt host port timeout slotnum count
-func sendRedisMigrateCmd(c redis.Conn, slotId int, toAddr string) (int, int, error) {
+func sendRedisMigrateCmd(c redis.Conn, slotId int, toAddr string) (bool, error) {
 	addrParts := strings.Split(toAddr, ":")
 	if len(addrParts) != 2 {
-		return -1, -1, ErrInvalidAddr
+		return false, ErrInvalidAddr
 	}
 
-	reply, err := redis.Values(c.Do("SLOTSMGRTTAGSLOT", addrParts[0], addrParts[1], MIGRATE_TIMEOUT, slotId))
+	//use scan and migrate
+	reply, err := redis.MultiBulk(c.Do("scan", 0))
 	if err != nil {
-		return -1, -1, err
+		return false, err
 	}
 
-	var succ, remain int
-	if _, err := redis.Scan(reply, &succ, &remain); err != nil {
-		return -1, -1, err
+	var next string
+	var keys []interface{}
+
+	if _, err := redis.Scan(reply, &next, &keys); err != nil {
+		return false, err
 	}
-	return succ, remain, nil
+
+	for _, key := range keys {
+		if _, err := c.Do("migrate", addrParts[0], addrParts[1], key, slotId, MIGRATE_TIMEOUT); err != nil {
+			//todo, try del if key exists
+			return false, err
+		}
+	}
+
+	return next != "0", nil
 }
 
 var ErrStopMigrateByUser = errors.New("migration stop by user")
@@ -77,12 +88,19 @@ func MigrateSingleSlot(zkConn zkhelper.Conn, slotId, fromGroup, toGroup int, del
 
 	defer c.Close()
 
-	_, remain, err := sendRedisMigrateCmd(c, slotId, toMaster.Addr)
+	if ok, err := redis.String(c.Do("select", slotId)); err != nil {
+		return err
+	} else if ok != "OK" {
+		return errors.New(ok)
+	}
+
+	remain, err := sendRedisMigrateCmd(c, slotId, toMaster.Addr)
 	if err != nil {
 		return err
 	}
 
-	for remain > 0 {
+	num := 0
+	for remain {
 		if delay > 0 {
 			time.Sleep(time.Duration(delay) * time.Millisecond)
 		}
@@ -93,10 +111,11 @@ func MigrateSingleSlot(zkConn zkhelper.Conn, slotId, fromGroup, toGroup int, del
 			default:
 			}
 		}
-		_, remain, err = sendRedisMigrateCmd(c, slotId, toMaster.Addr)
-		if remain%500 == 0 && remain > 0 {
-			log.Info("remain:", remain)
+		remain, err = sendRedisMigrateCmd(c, slotId, toMaster.Addr)
+		if num%500 == 0 && remain {
+			log.Infof("still migrating")
 		}
+		num++
 		if err != nil {
 			return err
 		}

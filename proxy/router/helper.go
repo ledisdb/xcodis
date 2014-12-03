@@ -5,6 +5,8 @@ package router
 
 import (
 	"bufio"
+	"bytes"
+	"fmt"
 	"io"
 	"os/exec"
 	"strconv"
@@ -180,6 +182,40 @@ func forward(c DeadlineReadWriter, redisConn BufioDeadlineReadWriter, resp *pars
 
 	// read and parse redis response
 	return write2Client(redisReader, c)
+}
+
+func selectDB(redisConn BufioDeadlineReadWriter, dbIndex int) error {
+	redisReader := redisConn.BufioReader()
+	if err := redisConn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return errors.Trace(err)
+	}
+
+	dbStr := strconv.Itoa(dbIndex)
+	data := []byte(fmt.Sprintf("*2\r\n$6\r\nSELECT\r\n$%d\r\n%s\r\n", len(dbStr), dbStr))
+
+	if err := writeBytes2Redis(data, redisConn); err != nil {
+		return errors.Trace(err)
+	}
+
+	if err := redisConn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return errors.Trace(err)
+	}
+
+	resp, err := parser.Parse(redisReader)
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	b, err := resp.Bytes()
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	if !bytes.Equal(b, OK_BYTES) {
+		return errors.Trace(fmt.Errorf("select %d not ok", dbIndex))
+	}
+
+	return nil
 }
 
 func StringsContain(s []string, key string) bool {

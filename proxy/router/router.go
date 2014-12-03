@@ -135,6 +135,11 @@ func (s *Server) handleMigrateState(slotIndex int, key []byte) error {
 
 	defer s.pools.ReleaseConn(redisConn)
 
+	if err := selectDB(redisConn.(*redispool.PooledConn), slotIndex); err != nil {
+		redisConn.Close()
+		return errors.Trace(err)
+	}
+
 	redisReader := redisConn.(*redispool.PooledConn).BufioReader()
 
 	err = WriteMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, key, slotIndex)
@@ -258,6 +263,13 @@ check_state:
 	//get redis connection
 	redisConn, err := s.pools.GetConn(s.slots[i].dst.Master())
 	if err != nil {
+		return errors.Trace(err)
+	}
+
+	if err := selectDB(redisConn.(*redispool.PooledConn), i); err != nil {
+		redisConn.Close()
+		s.pools.ReleaseConn(redisConn)
+
 		return errors.Trace(err)
 	}
 
