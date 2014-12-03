@@ -58,6 +58,8 @@ type Server struct {
 	//counter
 	counter   *stats.Counters
 	OnSuicide OnSuicideFun
+
+	broker string
 }
 
 func (s *Server) clearSlot(i int) {
@@ -114,7 +116,7 @@ func (s *Server) fillSlot(i int, force bool) {
 	s.counter.Add("FillSlot", 1)
 }
 
-func (s *Server) handleMigrateState(slotIndex int, key []byte) error {
+func (s *Server) handleMigrateState(slotIndex int, op string, key []byte) error {
 	shd := s.slots[slotIndex]
 	if shd.slotInfo.State.Status != models.SLOT_STATUS_MIGRATE {
 		return nil
@@ -142,7 +144,12 @@ func (s *Server) handleMigrateState(slotIndex int, key []byte) error {
 
 	redisReader := redisConn.(*redispool.PooledConn).BufioReader()
 
-	err = WriteMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, key, slotIndex)
+	if s.broker == LedisBroker {
+		err = ledisWriteMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, getOpGroup(op), key, slotIndex)
+	} else {
+		err = writeMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, key, slotIndex)
+	}
+
 	if err != nil {
 		redisConn.Close()
 		log.Warningf("migrate key %s error", string(key))
@@ -187,6 +194,13 @@ func (s *Server) filter(opstr string, keys [][]byte, c *session) (next bool, err
 		return false, nil
 	}
 
+	if s.broker == LedisBroker {
+		group := getOpGroup(opstr)
+		if len(group) == 0 {
+			return false, errors.Trace(fmt.Errorf("%s unsupported in ledisdb", opstr))
+		}
+	}
+
 	if isMulOp(opstr) {
 		if len(keys) == 1 { //can send to redis directly
 			return true, nil
@@ -217,6 +231,7 @@ func (s *Server) redisTunnel(c *session) error {
 	k := keys[0]
 
 	opstr := strings.ToUpper(string(op))
+
 	//log.Debugf("op: %s, %s", opstr, keys[0])
 	next, err := s.filter(opstr, keys, c)
 	if err != nil {
@@ -256,7 +271,7 @@ check_state:
 		s.concurrentLimiter.Put(token)
 	}()
 
-	if err := s.handleMigrateState(i, k); err != nil {
+	if err := s.handleMigrateState(i, opstr, k); err != nil {
 		return errors.Trace(err)
 	}
 
@@ -587,6 +602,8 @@ func NewServer(addr string, debugVarAddr string, conf *Conf) *Server {
 		moper:             NewMultiOperator("localhost:" + strings.Split(addr, ":")[1]),
 		pools:             cachepool.NewCachePool(),
 	}
+
+	s.broker = conf.broker
 
 	s.mu.Lock()
 	s.pi.Id = conf.proxyId

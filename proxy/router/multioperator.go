@@ -71,6 +71,14 @@ func (oper *MultiOperator) work() {
 			oper.mset(mop)
 		case "DEL":
 			oper.del(mop)
+		case "HMCLEAR":
+			oper.del(mop)
+		case "LMCLEAR":
+			oper.del(mop)
+		case "SMCLEAR":
+			oper.del(mop)
+		case "ZMCLEAR":
+			oper.del(mop)
 		}
 	}
 }
@@ -126,7 +134,7 @@ func (oper *MultiOperator) delResults(mop *MulOp) ([]byte, error) {
 	conn := oper.pool.Get()
 	defer conn.Close()
 	for _, k := range mop.keys {
-		n, err := conn.Do("del", k)
+		n, err := conn.Do(mop.op, k)
 		if err != nil {
 			return nil, errors.Trace(err)
 		}

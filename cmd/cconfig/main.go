@@ -34,7 +34,10 @@ var (
 	config      *cfg.Cfg
 	zkLock      zkhelper.ZLocker
 	livingNode  string
+	broker      = "ledisdb"
 )
+
+const LedisBroker = "ledisdb"
 
 type Command struct {
 	Run   func(cmd *Command, args []string)
@@ -218,8 +221,11 @@ func main() {
 	zkConn, _ = zkhelper.ConnectToZk(zkAddr)
 	zkLock = utils.GetZkLock(zkConn, productName)
 
+	broker, _ = config.ReadString("broker", "ledisdb")
+
 	log.Debugf("product: %s", productName)
 	log.Debugf("zk: %s", zkAddr)
+	log.Debugf("broker: %s", broker)
 
 	if err := registerConfigNode(); err != nil {
 		log.Fatal(errors.ErrorStack(err))

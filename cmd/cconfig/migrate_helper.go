@@ -24,9 +24,28 @@ const (
 var ErrGroupMasterNotFound = errors.New("group master not found")
 var ErrInvalidAddr = errors.New("invalid addr")
 
+type migrater struct {
+	group string
+}
+
+func (m *migrater) nextGroup() {
+	switch m.group {
+	case "KV":
+		m.group = "HASH"
+	case "HASH":
+		m.group = "LIST"
+	case "LIST":
+		m.group = "SET"
+	case "SET":
+		m.group = "ZSET"
+	case "ZSET":
+		m.group = ""
+	}
+}
+
 // return: success_count, remain_count, error
 // slotsmgrt host port timeout slotnum count
-func sendRedisMigrateCmd(c redis.Conn, slotId int, toAddr string) (bool, error) {
+func (m *migrater) sendRedisMigrateCmd(c redis.Conn, slotId int, toAddr string) (bool, error) {
 	addrParts := strings.Split(toAddr, ":")
 	if len(addrParts) != 2 {
 		return false, ErrInvalidAddr
@@ -53,6 +72,32 @@ func sendRedisMigrateCmd(c redis.Conn, slotId int, toAddr string) (bool, error) 
 	}
 
 	return next != "0", nil
+}
+
+func (m *migrater) sendLedisMigrateCmd(c redis.Conn, slotId int, toAddr string) (bool, error) {
+	addrParts := strings.Split(toAddr, ":")
+	if len(addrParts) != 2 {
+		return false, ErrInvalidAddr
+	}
+
+	count := 10
+	num, err := redis.Int(c.Do("xmigratedb", addrParts[0], addrParts[1], m.group, count, slotId, MIGRATE_TIMEOUT))
+	if err != nil {
+		return false, err
+	} else if num < count {
+		m.nextGroup()
+		return m.group != "", nil
+	} else {
+		return true, nil
+	}
+}
+
+func (m *migrater) sendMigrateCmd(c redis.Conn, slotId int, toAddr string) (bool, error) {
+	if broker == LedisBroker {
+		return m.sendLedisMigrateCmd(c, slotId, toAddr)
+	} else {
+		return m.sendRedisMigrateCmd(c, slotId, toAddr)
+	}
 }
 
 var ErrStopMigrateByUser = errors.New("migration stop by user")
@@ -94,7 +139,10 @@ func MigrateSingleSlot(zkConn zkhelper.Conn, slotId, fromGroup, toGroup int, del
 		return errors.New(ok)
 	}
 
-	remain, err := sendRedisMigrateCmd(c, slotId, toMaster.Addr)
+	m := new(migrater)
+	m.group = "KV"
+
+	remain, err := m.sendMigrateCmd(c, slotId, toMaster.Addr)
 	if err != nil {
 		return err
 	}
@@ -111,7 +159,7 @@ func MigrateSingleSlot(zkConn zkhelper.Conn, slotId, fromGroup, toGroup int, del
 			default:
 			}
 		}
-		remain, err = sendRedisMigrateCmd(c, slotId, toMaster.Addr)
+		remain, err = m.sendMigrateCmd(c, slotId, toMaster.Addr)
 		if num%500 == 0 && remain {
 			log.Infof("still migrating")
 		}

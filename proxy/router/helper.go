@@ -34,19 +34,23 @@ var blackList = []string{
 	"UNSUBSCRIBE", "DISCARD", "EXEC", "MULTI", "UNWATCH", "WATCH", "SCRIPT EXISTS", "SCRIPT FLUSH", "SCRIPT KILL",
 	"SCRIPT LOAD" /*, "AUTH" , "ECHO"*/ /*"QUIT",*/ /*"SELECT",*/, "BGREWRITEAOF", "BGSAVE", "CLIENT KILL", "CLIENT LIST",
 	"CONFIG GET", "CONFIG SET", "CONFIG RESETSTAT", "DBSIZE", "DEBUG OBJECT", "DEBUG SEGFAULT", "FLUSHALL", "FLUSHDB",
-	"INFO", "LASTSAVE", "MONITOR", "SAVE", "SHUTDOWN", "SLAVEOF", "SLOWLOG", "SYNC", "TIME", "SLOTSMGRTONE", "SLOTSMGRT",
-	"SLOTSDEL",
+	"INFO", "LASTSAVE", "MONITOR", "SAVE", "SHUTDOWN", "SLAVEOF", "SLOWLOG", "SYNC", "TIME",
 }
 
 var (
 	blackListCommand = make(map[string]struct{})
 	OK_BYTES         = []byte("+OK\r\n")
+
+	//for ledisdb
+	whiteListCommand = make(map[string]string)
 )
 
 func init() {
 	for _, k := range blackList {
 		blackListCommand[k] = struct{}{}
 	}
+
+	initWhiteListCommand()
 }
 
 func allowOp(op string) bool {
@@ -55,11 +59,12 @@ func allowOp(op string) bool {
 }
 
 func isMulOp(op string) bool {
-	if op == "MGET" || op == "DEL" || op == "MSET" {
+	switch op {
+	case "MGET", "DEL", "MSET", "LMCLEAR", "HMCLEAR", "SMCLEAR", "ZMCLEAR":
 		return true
+	default:
+		return false
 	}
-
-	return false
 }
 
 func validSlot(i int) bool {
@@ -70,7 +75,7 @@ func validSlot(i int) bool {
 	return true
 }
 
-func WriteMigrateKeyCmd(w io.Writer, addr string, timeoutMs int, key []byte, slotIndex int) error {
+func writeMigrateKeyCmd(w io.Writer, addr string, timeoutMs int, key []byte, slotIndex int) error {
 	hostPort := strings.Split(addr, ":")
 	if len(hostPort) != 2 {
 		return errors.Errorf("invalid address " + addr)
@@ -78,6 +83,17 @@ func WriteMigrateKeyCmd(w io.Writer, addr string, timeoutMs int, key []byte, slo
 	respW := respcoding.NewRESPWriter(w)
 	err := respW.WriteCommand("migrate", hostPort[0], hostPort[1],
 		string(key), strconv.Itoa(slotIndex), strconv.Itoa(int(timeoutMs)))
+	return errors.Trace(err)
+}
+
+func ledisWriteMigrateKeyCmd(w io.Writer, addr string, timeoutMs int, group string, key []byte, slotIndex int) error {
+	hostPort := strings.Split(addr, ":")
+	if len(hostPort) != 2 {
+		return errors.Errorf("invalid address " + addr)
+	}
+	respW := respcoding.NewRESPWriter(w)
+	err := respW.WriteCommand("xmigrate", hostPort[0], hostPort[1],
+		group, string(key), strconv.Itoa(slotIndex), strconv.Itoa(int(timeoutMs)))
 	return errors.Trace(err)
 }
 
@@ -282,6 +298,7 @@ type Conf struct {
 	productName string
 	zkAddr      string
 	f           topology.ZkFactory
+	broker      string
 }
 
 func LoadConf(configFile string) (*Conf, error) {
@@ -302,6 +319,11 @@ func LoadConf(configFile string) (*Conf, error) {
 	srvConf.proxyId, _ = conf.ReadString("proxy_id", "")
 	if len(srvConf.proxyId) == 0 {
 		log.Fatalf("invalid config: need proxy_id entry is missing in %s", configFile)
+	}
+
+	srvConf.broker, _ = conf.ReadString("broker", "ledisdb")
+	if len(srvConf.broker) == 0 {
+		log.Fatalf("invalid config: need broker entry is missing in %s", configFile)
 	}
 
 	return srvConf, nil
