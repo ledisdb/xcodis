@@ -47,7 +47,7 @@ func InitEnv() {
 		}
 
 		//init slot
-		err = models.InitSlotSet(conn, conf.productName, 1024)
+		err = models.InitSlotSet(conn, conf.productName, models.DEFAULT_SLOT_NUM)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -68,12 +68,12 @@ func InitEnv() {
 		g2.AddServer(conn, s2)
 
 		//set slot range
-		err = models.SetSlotRange(conn, conf.productName, 0, 511, 1, models.SLOT_STATUS_ONLINE)
+		err = models.SetSlotRange(conn, conf.productName, 0, models.DEFAULT_SLOT_NUM/2-1, 1, models.SLOT_STATUS_ONLINE)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		err = models.SetSlotRange(conn, conf.productName, 512, 1023, 2, models.SLOT_STATUS_ONLINE)
+		err = models.SetSlotRange(conn, conf.productName, models.DEFAULT_SLOT_NUM/2, models.DEFAULT_SLOT_NUM-1, 2, models.SLOT_STATUS_ONLINE)
 		if err != nil {
 			log.Fatal(err)
 		}
