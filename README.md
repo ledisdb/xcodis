@@ -2,7 +2,7 @@
 
 Yet another redis proxy based on [codis](https://github.com/wandoulabs/codis)
 
-**Please read codis document first.**
+**Please read codis document first. [here](https://github.com/wandoulabs/codis/blob/master/doc)** 
 
 ## Why xcodis?
 
