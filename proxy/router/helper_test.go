@@ -32,9 +32,9 @@ func TestStringsContain(t *testing.T) {
 }
 
 func TestAllowOp(t *testing.T) {
-	if allowOp("SLOTSMGRT") || allowOp("SLOTSMGRTONE") {
-		t.Error("should not allowed")
-	}
+	// if allowOp("SLOTSMGRT") || allowOp("SLOTSMGRTONE") {
+	// 	t.Error("should not allowed")
+	// }
 
 	if !allowOp("SET") {
 		t.Error("should be allowed")

@@ -19,6 +19,7 @@ Yet another redis proxy based on [codis](https://github.com/wandoulabs/codis)
 + Remove slot rebalance feature, maybe add later.
 + Must set a broker in `config.ini`, broker is `ledisdb` or `redis`.
 + Use a white command list for ledisdb.
++ Not support atomic tag migration.
 
 ## Thanks
 
