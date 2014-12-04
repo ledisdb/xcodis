@@ -92,6 +92,18 @@ func initWhiteListCommand() {
 	wc["ZEXPIREAT"] = "ZSET"
 	wc["ZTTL"] = "ZSET"
 	wc["ZPERSIST"] = "ZSET"
+
+	//very dangerous, all keys would have same hash (maybe same tag).
+	//we will use first key for hashing.
+	wc["SDIFF"] = "SET"
+	wc["SDIFFSTORE"] = "SET"
+	wc["SINTER"] = "SET"
+	wc["SINTERSTORE"] = "SET"
+	wc["SUNION"] = "SET"
+	wc["SUNIONSTORE"] = "SET"
+
+	wc["ZUNIONSTORE"] = "ZSET"
+	wc["ZINTERSTORE"] = "ZSET"
 }
 
 func getOpGroup(op string) string {
