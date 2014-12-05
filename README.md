@@ -7,7 +7,7 @@ Yet another redis proxy based on [codis](https://github.com/wandoulabs/codis)
 ## Why xcodis?
 
 + Supports [LedisDB](https://github.com/siddontang/ledisdb).
-+ Supports origin Redis, Wandoujia uses a modified version.
++ Supports origin Redis, codis uses a modified version.
 
 ## Changes from codis
 
@@ -20,6 +20,11 @@ Yet another redis proxy based on [codis](https://github.com/wandoulabs/codis)
 + Must set a broker in `config.ini`, broker is `ledisdb` or `redis`.
 + Uses a white command list for ledisdb.
 + Not support atomic tag migration.
++ Not support lua for ledisdb.
+
+## Todo
+
++ Tidy up some ugly codes I added. >_<
 
 ## Thanks
 
