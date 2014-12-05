@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"hash/crc32"
 
+	"fmt"
 	"github.com/siddontang/xcodis/models"
 )
 
@@ -27,4 +28,19 @@ func mapKey2Slot(key []byte) int {
 	}
 
 	return int(crc32.ChecksumIEEE(hashKey) % models.DEFAULT_SLOT_NUM)
+}
+
+func checkKeysInSameSlot(keys [][]byte) (int, error) {
+	slot := -1
+
+	for _, key := range keys {
+		s := mapKey2Slot(key)
+		if slot == -1 {
+			slot = s
+		} else if slot != s {
+			return -1, fmt.Errorf("keys not in same slot")
+		}
+	}
+
+	return slot, nil
 }

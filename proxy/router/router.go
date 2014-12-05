@@ -116,7 +116,7 @@ func (s *Server) fillSlot(i int, force bool) {
 	s.counter.Add("FillSlot", 1)
 }
 
-func (s *Server) handleMigrateState(slotIndex int, op string, key []byte) error {
+func (s *Server) handleMigrateState(slotIndex int, op string, keys [][]byte) error {
 	shd := s.slots[slotIndex]
 	if shd.slotInfo.State.Status != models.SLOT_STATUS_MIGRATE {
 		return nil
@@ -144,37 +144,41 @@ func (s *Server) handleMigrateState(slotIndex int, op string, key []byte) error 
 
 	redisReader := redisConn.(*redispool.PooledConn).BufioReader()
 
-	if s.broker == LedisBroker {
-		err = ledisWriteMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, getOpGroup(op), key, slotIndex)
-	} else {
-		err = writeMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, key, slotIndex)
+	//migrate multi keys
+	for _, key := range keys {
+		if s.broker == LedisBroker {
+			err = ledisWriteMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, getOpGroup(op), key, slotIndex)
+		} else {
+			err = writeMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, key, slotIndex)
+		}
+
+		if err != nil {
+			redisConn.Close()
+			log.Warningf("migrate key %s error", string(key))
+			return errors.Trace(err)
+		}
+
+		//handle migrate result
+		resp, err := parser.Parse(redisReader)
+		if err != nil {
+			redisConn.Close()
+			return errors.Trace(err)
+		}
+
+		result, err := resp.Bytes()
+
+		log.Debug("migrate", string(key), "from", shd.migrateFrom.Master(), "to", shd.dst.Master(),
+			string(result))
+
+		if resp.Type == parser.ErrorResp {
+			redisConn.Close()
+			log.Error(string(key), string(resp.Raw), "migrateFrom", shd.migrateFrom.Master())
+			return errors.New(string(resp.Raw))
+		}
+
+		s.counter.Add("Migrate", 1)
 	}
 
-	if err != nil {
-		redisConn.Close()
-		log.Warningf("migrate key %s error", string(key))
-		return errors.Trace(err)
-	}
-
-	//handle migrate result
-	resp, err := parser.Parse(redisReader)
-	if err != nil {
-		redisConn.Close()
-		return errors.Trace(err)
-	}
-
-	result, err := resp.Bytes()
-
-	log.Debug("migrate", string(key), "from", shd.migrateFrom.Master(), "to", shd.dst.Master(),
-		string(result))
-
-	if resp.Type == parser.ErrorResp {
-		redisConn.Close()
-		log.Error(string(key), string(resp.Raw), "migrateFrom", shd.migrateFrom.Master())
-		return errors.New(string(resp.Raw))
-	}
-
-	s.counter.Add("Migrate", 1)
 	return nil
 }
 
@@ -244,7 +248,13 @@ func (s *Server) redisTunnel(c *session) error {
 		return nil
 	}
 
-	i := mapKey2Slot(k)
+	//must check multi keys in same slot
+	i, mkeys, err := checkMigrateKeys(opstr, keys)
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	//i := mapKey2Slot(k)
 	token := s.concurrentLimiter.Get()
 
 check_state:
@@ -271,7 +281,7 @@ check_state:
 		s.concurrentLimiter.Put(token)
 	}()
 
-	if err := s.handleMigrateState(i, opstr, k); err != nil {
+	if err := s.handleMigrateState(i, opstr, mkeys); err != nil {
 		return errors.Trace(err)
 	}
 

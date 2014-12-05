@@ -94,7 +94,6 @@ func initWhiteListCommand() {
 	wc["ZPERSIST"] = "ZSET"
 
 	//very dangerous, all keys would have same hash (maybe same tag).
-	//we will use first key for hashing.
 	wc["SDIFF"] = "SET"
 	wc["SDIFFSTORE"] = "SET"
 	wc["SINTER"] = "SET"

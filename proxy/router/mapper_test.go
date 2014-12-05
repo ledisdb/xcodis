@@ -14,3 +14,13 @@ func TestMapKey2Slot(t *testing.T) {
 		}
 	}
 }
+
+func TestKeysInSameSlot(t *testing.T) {
+	if _, err := checkKeysInSameSlot([][]byte{
+		[]byte("123{xxx}abc"),
+		[]byte("{xxx}aa"),
+		[]byte("x{xxx}"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

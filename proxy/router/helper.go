@@ -293,6 +293,18 @@ func recordResponseTime(c *stats.Counters, d time.Duration) {
 	}
 }
 
+func checkMigrateKeys(op string, keys [][]byte) (int, [][]byte, error) {
+	switch op {
+	case "ZINTERSTORE", "ZUNIONSTORE", "EVAL", "EVALSHA", "SDIFF", "SDIFFSTORE",
+		"SINTER", "SINTERSTORE", "SUNION", "SUNIONSTORE":
+		slot, err := checkKeysInSameSlot(keys)
+		return slot, keys, err
+	default:
+		//we will use the first key for migration
+		return mapKey2Slot(keys[0]), keys[0:1], nil
+	}
+}
+
 type Conf struct {
 	proxyId     string
 	productName string
