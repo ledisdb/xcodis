@@ -33,10 +33,20 @@ func (cp *CachePool) GetConn(key string) (redispool.PoolConnection, error) {
 	pool, ok := cp.pools[key]
 	if !ok {
 		cp.mu.RUnlock()
-		return nil, errors.Errorf("pool %s not exist", key)
+
+		cp.AddPool(key)
+
+		cp.mu.RLock()
+
+		pool, ok = cp.pools[key]
 	}
 
 	cp.mu.RUnlock()
+
+	if !ok {
+		return nil, errors.Errorf("pool %s not exist", key)
+	}
+
 	c, err := pool.pool.Get()
 
 	return c, err
@@ -55,7 +65,7 @@ func (cp *CachePool) AddPool(key string) error {
 		return nil
 	}
 	pool = &LivePool{
-		pool: redispool.NewConnectionPool("redis conn pool", 50, 120*time.Second),
+		pool: redispool.NewConnectionPool("redis conn pool", 16, 120*time.Second),
 	}
 
 	pool.pool.Open(redispool.ConnectionCreator(key))

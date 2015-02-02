@@ -43,7 +43,7 @@ type MigrateTaskForm struct {
 type MigrateTask struct {
 	MigrateTaskForm
 
-	stopChan chan struct{} `json:"-"`
+	stopChan chan struct{}
 }
 
 func findPendingMigrateTask(id string) *MigrateTask {
@@ -86,6 +86,7 @@ func RunMigrateTask(task *MigrateTask) error {
 					log.Info(err)
 				}
 			}()
+			// set slot status
 			s, err := models.GetSlot(conn, productName, slotId)
 			if err != nil {
 				log.Error(err)
@@ -101,6 +102,24 @@ func RunMigrateTask(task *MigrateTask) error {
 				from = s.State.MigrateStatus.From
 			}
 
+			// make sure from group & target group exists
+			exists, err := models.GroupExists(conn, productName, from)
+			if err != nil {
+				return errors.Trace(err)
+			}
+			if !exists {
+				log.Errorf("src group %d not exist when migrate from %d to %d", from, from, to)
+				return errors.NotFoundf("group %d", from)
+			}
+			exists, err = models.GroupExists(conn, productName, to)
+			if err != nil {
+				return errors.Trace(err)
+			}
+			if !exists {
+				return errors.NotFoundf("group %d", to)
+			}
+
+			// cannot migrate to itself
 			if from == to {
 				log.Warning("from == to, ignore", s)
 				return nil
@@ -133,6 +152,7 @@ func RunMigrateTask(task *MigrateTask) error {
 			log.Info("stop migration job by user")
 			break
 		} else if err != nil {
+			log.Error(err)
 			task.Status = MIGRATE_TASK_ERR
 			return err
 		}
