@@ -5,11 +5,15 @@ package redispool
 
 import (
 	"bufio"
+	"fmt"
 	"net"
+	"strings"
 )
 
 //not thread-safe
 type Conn struct {
+	DB int
+
 	addr string
 	net.Conn
 	closed bool
@@ -51,22 +55,31 @@ func (pc *PooledConn) BufioReader() *bufio.Reader {
 	return pc.r
 }
 
-func NewConnection(addr string) (*Conn, error) {
+// key format addr[/db]
+func NewConnection(key string) (*Conn, error) {
+	seps := strings.Split(key, "/")
+	if len(seps) != 2 && len(seps) != 1 {
+		return nil, fmt.Errorf("invalid connection key format %s, must addr[/db]", key)
+	}
+
+	addr := seps[0]
+
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Conn{
+		DB:   0,
 		addr: addr,
 		Conn: conn,
 		r:    bufio.NewReaderSize(conn, 204800),
 	}, nil
 }
 
-func ConnectionCreator(addr string) CreateConnectionFunc {
+func ConnectionCreator(key string) CreateConnectionFunc {
 	return func(pool *ConnectionPool) (PoolConnection, error) {
-		c, err := NewConnection(addr)
+		c, err := NewConnection(key)
 		if err != nil {
 			return nil, err
 		}

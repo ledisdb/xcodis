@@ -19,7 +19,8 @@ Yet another redis proxy based on [codis](https://github.com/wandoulabs/codis)
 
 ## Changes from codis
 
-+ Uses db index to represent slot concept in codis, every operations must call `select db` first with a little performance degradation.
++ Uses db index to represent slot concept in codis.
++ Uses server + db as the connection pool key.
 + `DEFAULT_SLOT_NUM` must equal redis/ledisdb databases. 16 is the default for redis, and ledisdb only supports 16 now. (may change later.)
 + Uses `scan` + `migrate` in redis for slot migration.
 + Uses `xmigrate` + `xmigratedb` in ledisdb for slot migration.

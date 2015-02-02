@@ -200,9 +200,9 @@ func forward(c DeadlineReadWriter, redisConn BufioDeadlineReadWriter, resp *pars
 	return write2Client(redisReader, c)
 }
 
-func selectDB(redisConn BufioDeadlineReadWriter, dbIndex int) error {
+func selectDB(redisConn BufioDeadlineReadWriter, dbIndex int, timeout int) error {
 	redisReader := redisConn.BufioReader()
-	if err := redisConn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+	if err := redisConn.SetWriteDeadline(time.Now().Add(time.Duration(timeout) * time.Second)); err != nil {
 		return errors.Trace(err)
 	}
 
@@ -213,7 +213,7 @@ func selectDB(redisConn BufioDeadlineReadWriter, dbIndex int) error {
 		return errors.Trace(err)
 	}
 
-	if err := redisConn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+	if err := redisConn.SetReadDeadline(time.Now().Add(time.Duration(timeout) * time.Second)); err != nil {
 		return errors.Trace(err)
 	}
 
@@ -338,6 +338,8 @@ func LoadConf(configFile string) (*Conf, error) {
 	if len(srvConf.broker) == 0 {
 		log.Fatalf("invalid config: need broker entry is missing in %s", configFile)
 	}
+
+	srvConf.net_timeout, _ = conf.ReadInt("net_timeout", 5)
 
 	return srvConf, nil
 }

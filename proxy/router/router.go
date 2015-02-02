@@ -100,7 +100,7 @@ func (s *Server) fillSlot(i int, force bool) {
 		groupInfo: groupInfo,
 	}
 
-	s.pools.AddPool(slot.dst.Master())
+	//s.pools.AddPool(slot.dst.Master())
 
 	if slot.slotInfo.State.Status == models.SLOT_STATUS_MIGRATE {
 		//get migrate src group and fill it
@@ -109,7 +109,7 @@ func (s *Server) fillSlot(i int, force bool) {
 			log.Fatal(err)
 		}
 		slot.migrateFrom = group.NewGroup(*from)
-		s.pools.AddPool(slot.migrateFrom.Master())
+		//s.pools.AddPool(slot.migrateFrom.Master())
 	}
 
 	s.slots[i] = slot
@@ -130,16 +130,19 @@ func (s *Server) handleMigrateState(slotIndex int, op string, keys [][]byte) err
 		log.Fatalf("the same migrate src and dst, %+v", shd)
 	}
 
-	redisConn, err := s.pools.GetConn(shd.migrateFrom.Master())
+	redisConn, err := s.pools.GetConn(fmt.Sprintf("%s/%d", shd.migrateFrom.Master(), slotIndex))
 	if err != nil {
 		return errors.Trace(err)
 	}
 
 	defer s.pools.ReleaseConn(redisConn)
 
-	if err := selectDB(redisConn.(*redispool.PooledConn), slotIndex); err != nil {
-		redisConn.Close()
-		return errors.Trace(err)
+	if redisConn.(*redispool.PooledConn).DB != slotIndex {
+		if err := selectDB(redisConn.(*redispool.PooledConn), slotIndex, s.net_timeout); err != nil {
+			redisConn.Close()
+			return errors.Trace(err)
+		}
+		redisConn.(*redispool.PooledConn).DB = slotIndex
 	}
 
 	redisReader := redisConn.(*redispool.PooledConn).BufioReader()
@@ -287,16 +290,19 @@ check_state:
 	}
 
 	//get redis connection
-	redisConn, err := s.pools.GetConn(s.slots[i].dst.Master())
+	redisConn, err := s.pools.GetConn(fmt.Sprintf("%s/%d", s.slots[i].dst.Master(), i))
 	if err != nil {
 		return errors.Trace(err)
 	}
 
-	if err := selectDB(redisConn.(*redispool.PooledConn), i); err != nil {
-		redisConn.Close()
-		s.pools.ReleaseConn(redisConn)
+	if redisConn.(*redispool.PooledConn).DB != i {
+		if err := selectDB(redisConn.(*redispool.PooledConn), i, s.net_timeout); err != nil {
+			redisConn.Close()
+			s.pools.ReleaseConn(redisConn)
 
-		return errors.Trace(err)
+			return errors.Trace(err)
+		}
+		redisConn.(*redispool.PooledConn).DB = i
 	}
 
 	redisErr, clientErr := forward(c, redisConn.(*redispool.PooledConn), resp, s.net_timeout)
