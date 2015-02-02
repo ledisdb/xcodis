@@ -15,8 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/siddontang/xcodis/utils"
-
 	topo "github.com/siddontang/xcodis/proxy/router/topology"
 
 	"github.com/siddontang/xcodis/models"
@@ -29,6 +27,7 @@ import (
 	"github.com/juju/errors"
 	stats "github.com/ngaut/gostats"
 	log "github.com/ngaut/logging"
+	"github.com/ngaut/tokenlimiter"
 )
 
 type Slot struct {
@@ -51,13 +50,14 @@ type Server struct {
 	pi                models.ProxyInfo
 	startAt           time.Time
 	addr              string
-	concurrentLimiter *utils.TokenLimiter
+	concurrentLimiter *tokenlimiter.TokenLimiter
 
 	moper *MultiOperator
 	pools *cachepool.CachePool
 	//counter
-	counter   *stats.Counters
-	OnSuicide OnSuicideFun
+	counter     *stats.Counters
+	OnSuicide   OnSuicideFun
+	net_timeout int //seconds
 
 	broker string
 }
@@ -187,7 +187,7 @@ func (s *Server) filter(opstr string, keys [][]byte, c *session) (next bool, err
 		return false, errors.Trace(fmt.Errorf("%s not allowed", opstr))
 	}
 
-	shouldClose, handled, err := handleSpecCommand(opstr, c, keys)
+	shouldClose, handled, err := handleSpecCommand(opstr, c, keys, s.net_timeout)
 	if shouldClose { //quit command
 		return false, errors.Trace(io.EOF)
 	}
@@ -260,7 +260,8 @@ func (s *Server) redisTunnel(c *session) error {
 check_state:
 	s.mu.RLock()
 	if s.slots[i] == nil {
-		s.mu.Unlock()
+		s.mu.RUnlock()
+		s.concurrentLimiter.Put(token)
 		return errors.Errorf("should never happend, slot %d is empty", i)
 	}
 	//wait for state change, should be soon
@@ -274,8 +275,8 @@ check_state:
 		s.mu.RUnlock()
 		sec := time.Since(start).Seconds()
 		if sec > 2 {
-			log.Warningf("op: %s, key:%s, on: %s, too long %d", opstr,
-				string(k), s.slots[i].dst.Master(), int(sec))
+			log.Warningf("op: %s, key:%s, on: %s, too long %d seconds, client: %s", opstr,
+				string(k), s.slots[i].dst.Master(), int(sec), c.RemoteAddr().String())
 		}
 		recordResponseTime(s.counter, time.Duration(sec)*1000)
 		s.concurrentLimiter.Put(token)
@@ -298,7 +299,7 @@ check_state:
 		return errors.Trace(err)
 	}
 
-	redisErr, clientErr := forward(c, redisConn.(*redispool.PooledConn), resp)
+	redisErr, clientErr := forward(c, redisConn.(*redispool.PooledConn), resp, s.net_timeout)
 	if redisErr != nil {
 		redisConn.Close()
 	}
@@ -405,11 +406,12 @@ func (s *Server) getProxyInfo() models.ProxyInfo {
 
 func (s *Server) getActionObject(seq int, target interface{}) {
 	act := &models.Action{Target: target}
-	log.Infof("%+v", act)
 	err := s.top.GetActionWithSeqObject(int64(seq), act)
 	if err != nil {
 		log.Fatal(errors.ErrorStack(err))
 	}
+
+	log.Infof("%+v", act)
 }
 
 func (s *Server) checkAndDoTopoChange(seq int) (needResponse bool) {
@@ -604,12 +606,13 @@ func NewServer(addr string, debugVarAddr string, conf *Conf) *Server {
 	s := &Server{
 		evtbus:            make(chan interface{}, 100),
 		top:               topo.NewTopo(conf.productName, conf.zkAddr, conf.f),
+		net_timeout:       conf.net_timeout,
 		counter:           stats.NewCounters("router"),
 		lastActionSeq:     -1,
 		startAt:           time.Now(),
 		addr:              addr,
-		concurrentLimiter: utils.NewTokenLimiter(100),
-		moper:             NewMultiOperator("localhost:" + strings.Split(addr, ":")[1]),
+		concurrentLimiter: tokenlimiter.NewTokenLimiter(100),
+		moper:             NewMultiOperator(addr),
 		pools:             cachepool.NewCachePool(),
 	}
 

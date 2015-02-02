@@ -19,11 +19,11 @@ import (
 
 func cmdSlot(argv []string) (err error) {
 	usage := `usage:
-	cconfig slot init [-f]
-	cconfig slot info <slot_id>
-	cconfig slot set <slot_id> <group_id> <status>
-	cconfig slot range-set <slot_from> <slot_to> <group_id> <status>
-	cconfig slot migrate <slot_from> <slot_to> <group_id> [--delay=<delay_time_in_ms>]
+	codis-config slot init [-f]
+	codis-config slot info <slot_id>
+	codis-config slot set <slot_id> <group_id> <status>
+	codis-config slot range-set <slot_from> <slot_to> <group_id> <status>
+	codis-config slot migrate <slot_from> <slot_to> <group_id> [--delay=<delay_time_in_ms>]
 `
 
 	args, err := docopt.Parse(usage, argv, true, "", false)
@@ -162,12 +162,8 @@ func runSlotRangeSet(fromSlotId, toSlotId int, groupId int, status string) error
 }
 
 func runSlotSet(slotId int, groupId int, status string) error {
-	slot := models.NewSlot(productName, slotId)
-	slot.GroupId = groupId
-	slot.State.Status = models.SlotStatus(status)
-	ts := time.Now().Unix()
-	slot.State.LastOpTs = strconv.FormatInt(ts, 10)
-	if err := slot.Update(zkConn); err != nil {
+	err := models.SetSlotRange(zkConn, productName, slotId, slotId, groupId, models.SlotStatus(status))
+	if err != nil {
 		return errors.Trace(err)
 	}
 	return nil
