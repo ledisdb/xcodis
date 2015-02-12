@@ -143,6 +143,10 @@
 			"Rev": "bc9454ca562dc050e060ea61a1c0e562a189850f"
 		},
 		{
+			"ImportPath": "github.com/prometheus/procfs",
+			"Rev": "92faa308558161acab0ada1db048e9996ecec160"
+		},
+		{
 			"ImportPath": "github.com/siddontang/go/log",
 			"Rev": "c2b33271306fcb7c6532efceac33ec45ee2439e0"
 		},
