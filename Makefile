@@ -1,12 +1,15 @@
 all: build
 
-build: build-proxy build-config 
+build: build-proxy build-config build-ha
 
 build-proxy:
 	godep go build -o bin/codis-proxy ./cmd/proxy
 
 build-config:
 	godep go build -o bin/codis-config ./cmd/cconfig
+
+build-ha:
+	godep go build -o bin/codis-ha ./cmd/ha
 
 clean:
 	godep go clean -i ./...
