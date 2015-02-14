@@ -16,6 +16,9 @@ var checkInterval = flag.Int("check_interval", 1000, "check master alive every n
 var maxDownTime = flag.Int("max_down_time", 3, "max down time for a master, after that, we will do failover")
 var masters = flag.String("masters", "", "redis master need to be monitored, seperated by comma")
 var mastersState = flag.String("masters_state", "", "new or existing for raft, if new, we will depracted old saved masters")
+
+var broker = flag.String("broker", "", "broker for cluster, now is raft or zk")
+
 var raftDataDir = flag.String("raft_data_dir", "./var/store", "raft data store path")
 var raftLogDir = flag.String("raft_log_dir", "./var/log", "raft log store path")
 var raftAddr = flag.String("raft_addr", "", "raft listen addr, if empty, we will disable raft")
@@ -50,6 +53,8 @@ func main() {
 		c.MaxDownTime = *maxDownTime
 	}
 
+	c.Broker = *broker
+
 	if len(*raftAddr) > 0 {
 		c.Raft.Addr = *raftAddr
 	}
@@ -79,6 +84,10 @@ func main() {
 	if len(*mastersState) > 0 {
 		c.MastersState = *mastersState
 	}
+
+	// for zk, we use same zk with xcodis
+	c.Zk.BaseDir = fmt.Sprintf("/zk/codis/db_%s/failover", *productName)
+	c.Zk.Addr = strings.Split(*zkAddr, ",")
 
 	app, err := failover.NewApp(c)
 	if err != nil {

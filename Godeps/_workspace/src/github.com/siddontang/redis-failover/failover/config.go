@@ -23,13 +23,21 @@ type RaftConfig struct {
 	ClusterState string   `toml:"cluster_state"`
 }
 
+type ZkConfig struct {
+	Addr    []string `toml:"addr"`
+	BaseDir string   `toml:"base_dir"`
+}
+
 type Config struct {
-	Addr          string     `toml:"addr"`
-	Masters       []string   `toml:"masters"`
-	MastersState  string     `toml:"masters_state"`
-	CheckInterval int        `toml:"check_interval"`
-	MaxDownTime   int        `toml:"max_down_time"`
-	Raft          RaftConfig `toml:"raft"`
+	Addr          string   `toml:"addr"`
+	Masters       []string `toml:"masters"`
+	MastersState  string   `toml:"masters_state"`
+	CheckInterval int      `toml:"check_interval"`
+	MaxDownTime   int      `toml:"max_down_time"`
+
+	Broker string     `toml:"broker"`
+	Raft   RaftConfig `toml:"raft"`
+	Zk     ZkConfig   `toml:"zk"`
 }
 
 func NewConfigWithFile(name string) (*Config, error) {

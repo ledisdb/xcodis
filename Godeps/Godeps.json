@@ -49,6 +49,14 @@
 			"Rev": "785e0ca9319196b94fd61abd4c9eab5c11777377"
 		},
 		{
+			"ImportPath": "github.com/go-cloud/go-zookeeper/zk",
+			"Rev": "a75bd3e768869ad1a35a6c0dea7fa9aac41b76aa"
+		},
+		{
+			"ImportPath": "github.com/go-cloud/zkhelper",
+			"Rev": "c0db2971045e0f19dce1b041948fb4867a938b09"
+		},
+		{
 			"ImportPath": "github.com/gorilla/context",
 			"Rev": "14f550f51af52180c2eefed15e5fd18d63c0a64a"
 		},
@@ -156,7 +164,7 @@
 		},
 		{
 			"ImportPath": "github.com/siddontang/redis-failover/failover",
-			"Rev": "248c1474a8ec150053ee0c274bb4d836db3e8c29"
+			"Rev": "7c949dac9839d72285d8f416d584530a4058ada4"
 		}
 	]
 }

@@ -1,0 +1,48 @@
+# Server HTTP listen address
+addr = "127.0.0.1:11000"
+
+# Monitored masters
+masters = ["127.0.0.1:6379"]
+
+# Monitored masters state, new or exising
+# after service starts, we will save the current monitored masters in somewhere.
+# if new, we will use discard old saved masters and use new in the config.
+# if existing, we will use before saved masters + new in the config.
+# we will only save masters in some place in raft mode. 
+masters_state = "existing"
+
+# Check master alive every n millisecond, default is 1000 millisecond
+check_interval = 1000
+
+# If every check in max_down_time seconds is failed, we may think the master is down, then do failover.
+# the totoal check num = max_down_time / check_interval
+max_down_time = 3
+
+# zk, raft 
+broker = "raft"
+
+[raft]
+# Raft listen address, if empty, we will not use raft cluster
+addr = "127.0.0.1:12000"
+
+# Data store path
+data_dir = "./var"
+
+# Log path, if empty, stdout will be used
+log_dir = ""
+
+# Raft cluster, if we have multi raft servers, write it here. It can contain above raft_addr
+cluster = ["127.0.0.1:12000"]
+
+# Raft cluster state, new or existing
+# after service starts, we will save the current cluster in a config file.
+# if new, we will use above cluster config as the new raft cluster.
+# if existing, we will use before saved cluster config + above cluster as the raft cluster.
+cluster_state = "existing"
+
+[zk]
+# Zookeeper addr
+addr = ["127.0.0.1:2181"]
+
+# Base directory in zk, prefix must be /zk
+base_dir = "/zk/redis/failover"

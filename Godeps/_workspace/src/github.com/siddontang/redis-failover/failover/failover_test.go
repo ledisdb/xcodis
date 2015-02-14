@@ -2,6 +2,7 @@ package failover
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"github.com/garyburd/redigo/redis"
 	. "gopkg.in/check.v1"
@@ -12,6 +13,8 @@ import (
 	"testing"
 	"time"
 )
+
+var zkAddr = flag.String("zk", "", "zookeeper address, seperated by comma")
 
 func Test(t *testing.T) {
 	TestingT(t)
@@ -176,17 +179,31 @@ func (s *failoverTestSuite) TestFailoverCheck(c *C) {
 }
 
 func (s *failoverTestSuite) TestOneFaftFailoverCheck(c *C) {
-	apps := s.newClusterApp(c, 1, 0)
+	s.testOneClusterFailoverCheck(c, "raft")
+}
+
+func (s *failoverTestSuite) checkLeader(c *C, apps []*App) *App {
+	for i := 0; i < 20; i++ {
+		for _, app := range apps {
+			if app != nil && app.cluster.IsLeader() {
+				return app
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	c.Assert(1, Equals, 0)
+
+	return nil
+}
+
+func (s *failoverTestSuite) testOneClusterFailoverCheck(c *C, broker string) {
+	apps := s.newClusterApp(c, 1, 0, broker)
 	app := apps[0]
 
 	defer app.Close()
 
-	select {
-	case b := <-app.r.LeaderCh():
-		c.Assert(b, Equals, true)
-	case <-time.After(5 * time.Second):
-		c.Fatal("elect to leader failed after 5s, too slow")
-	}
+	s.checkLeader(c, apps)
 
 	port := testPort[0]
 	masterAddr := fmt.Sprintf("127.0.0.1:%d", port)
@@ -208,31 +225,20 @@ func (s *failoverTestSuite) TestOneFaftFailoverCheck(c *C) {
 	}
 }
 
-func (s *failoverTestSuite) TestMultiFaftFailoverCheck(c *C) {
-	apps := s.newClusterApp(c, 3, 10)
+func (s *failoverTestSuite) TestMultiRaftFailoverCheck(c *C) {
+	s.testMultiClusterFailoverCheck(c, "raft")
+}
+
+func (s *failoverTestSuite) testMultiClusterFailoverCheck(c *C, broker string) {
+	apps := s.newClusterApp(c, 3, 10, broker)
 	defer func() {
 		for _, app := range apps {
 			app.Close()
 		}
 	}()
 
-	lc := make(chan *App, 3)
-	for _, app := range apps {
-		go func(app *App) {
-			b := <-app.r.LeaderCh()
-			if b {
-				lc <- app
-			}
-		}(app)
-	}
-
-	var app *App
 	// leader
-	select {
-	case app = <-lc:
-	case <-time.After(5 * time.Second):
-		c.Fatal("can not elect a leader after 5s, too slow")
-	}
+	app := s.checkLeader(c, apps)
 
 	port := testPort[0]
 	masterAddr := fmt.Sprintf("127.0.0.1:%d", port)
@@ -256,7 +262,7 @@ func (s *failoverTestSuite) TestMultiFaftFailoverCheck(c *C) {
 	ms = app.masters.GetMasters()
 	c.Assert(ms, DeepEquals, []string{})
 
-	err = app.r.Barrier(5 * time.Second)
+	err = app.cluster.Barrier(5 * time.Second)
 	c.Assert(err, IsNil)
 
 	// close leader
@@ -266,25 +272,7 @@ func (s *failoverTestSuite) TestMultiFaftFailoverCheck(c *C) {
 	s.startRedis(c, port)
 
 	// wait other two elect new leader
-
-	lc = make(chan *App, 3)
-	for _, a := range apps {
-		if a == app {
-			continue
-		}
-		go func(app *App) {
-			b := <-app.r.LeaderCh()
-			if b {
-				lc <- app
-			}
-		}(a)
-	}
-
-	select {
-	case app = <-lc:
-	case <-time.After(5 * time.Second):
-		c.Fatal("can not elect a leader after 5s, too slow")
-	}
+	app = s.checkLeader(c, apps)
 
 	err = app.addMasters([]string{masterAddr})
 	c.Assert(err, IsNil)
@@ -301,6 +289,14 @@ func (s *failoverTestSuite) TestMultiFaftFailoverCheck(c *C) {
 	case <-time.After(5 * time.Second):
 		c.Fatal("check is not ok after 5s, too slow")
 	}
+}
+
+func (s *failoverTestSuite) TestOneZkFailoverCheck(c *C) {
+	s.testOneClusterFailoverCheck(c, "zk")
+}
+
+func (s *failoverTestSuite) TestMultiZkFailoverCheck(c *C) {
+	s.testMultiClusterFailoverCheck(c, "zk")
 }
 
 func (s *failoverTestSuite) addBeforeHandler(app *App) chan string {
@@ -325,7 +321,7 @@ func (s *failoverTestSuite) addAfterHandler(app *App) chan string {
 	return ch
 }
 
-func (s *failoverTestSuite) newClusterApp(c *C, num int, base int) []*App {
+func (s *failoverTestSuite) newClusterApp(c *C, num int, base int, broker string) []*App {
 	port := 11000
 	raftPort := 12000
 	cluster := make([]string, 0, num)
@@ -336,6 +332,8 @@ func (s *failoverTestSuite) newClusterApp(c *C, num int, base int) []*App {
 
 	for i := 0; i < num; i++ {
 		cfg := new(Config)
+		cfg.Broker = broker
+
 		cfg.Addr = fmt.Sprintf(":%d", port+i)
 		cfg.MaxDownTime = 1
 
@@ -348,6 +346,14 @@ func (s *failoverTestSuite) newClusterApp(c *C, num int, base int) []*App {
 
 		cfg.Raft.ClusterState = ClusterStateExisting
 		cfg.Raft.Cluster = cluster
+
+		if *zkAddr == "" {
+			cfg.Zk.Addr = []string{"memory"}
+		} else {
+			cfg.Zk.Addr = strings.Split(*zkAddr, ",")
+		}
+
+		cfg.Zk.BaseDir = "/zk/redis/failover"
 
 		app, err := NewApp(cfg)
 
