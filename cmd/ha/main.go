@@ -95,6 +95,7 @@ func main() {
 		return
 	}
 
+	app.AddBeforeFailoverHandler(BeforePromote)
 	app.AddAfterFailoverHandler(Promote)
 
 	sc := make(chan os.Signal, 1)

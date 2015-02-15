@@ -4,9 +4,38 @@ import (
 	"fmt"
 	log "github.com/ngaut/logging"
 	"github.com/ngaut/zkhelper"
+	"github.com/siddontang/redis-failover/failover"
 	"github.com/siddontang/xcodis/models"
 	"github.com/siddontang/xcodis/utils"
 )
+
+func BeforePromote(oldMaster string) error {
+	conn, _ := zkhelper.ConnectToZk(*zkAddr)
+	defer conn.Close()
+
+	groups, err := models.ServerGroups(conn, *productName)
+	if err != nil {
+		log.Errorf("get server groups error %v, give up failover", err)
+		return failover.ErrGiveupFailover
+	}
+
+	found := false
+	for _, group := range groups {
+		for _, server := range group.Servers {
+			if server.Addr == oldMaster {
+				found = true
+				break
+			}
+		}
+	}
+
+	if !found {
+		log.Errorf("can not find %s in any groups, give up failover", oldMaster)
+		return failover.ErrGiveupFailover
+	}
+
+	return nil
+}
 
 func Promote(oldMaster string, newMaster string) error {
 	conn, _ := zkhelper.ConnectToZk(*zkAddr)
