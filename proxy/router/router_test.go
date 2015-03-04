@@ -75,7 +75,7 @@ func InitEnv() {
 			log.Fatal(err)
 		}
 
-		err = models.SetSlotRange(conn, conf.productName, conf.slot_num/2, slot_num-1, 2, models.SLOT_STATUS_ONLINE)
+		err = models.SetSlotRange(conn, conf.productName, conf.slot_num/2, conf.slot_num-1, 2, models.SLOT_STATUS_ONLINE)
 		if err != nil {
 			log.Fatal(err)
 		}
