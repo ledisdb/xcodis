@@ -41,7 +41,7 @@ func initWhiteListCommand() {
 		"SETBIT")
 
 	regCmdType("HASH",
-		"HEDL",
+		"HDEL",
 		"HEXISTS",
 		"HGET",
 		"HGETALL",
