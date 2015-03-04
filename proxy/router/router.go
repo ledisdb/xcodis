@@ -30,7 +30,7 @@ import (
 	"github.com/ngaut/tokenlimiter"
 )
 
-var databases int = 16
+var slot_num int = 16
 
 type Slot struct {
 	slotInfo    *models.Slot
@@ -595,8 +595,8 @@ func (s *Server) waitOnline() {
 }
 
 func (s *Server) FillSlots() {
-	s.slots = make([]*Slot, databases)
-	for i := 0; i < databases; i++ {
+	s.slots = make([]*Slot, slot_num)
+	for i := 0; i < slot_num; i++ {
 		s.fillSlot(i, false)
 	}
 }
@@ -627,7 +627,7 @@ func NewServer(addr string, debugVarAddr string, conf *Conf) *Server {
 
 	s.broker = conf.broker
 
-	databases = conf.databases
+	slot_num = conf.slot_num
 
 	s.mu.Lock()
 	s.pi.Id = conf.proxyId

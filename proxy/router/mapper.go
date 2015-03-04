@@ -27,7 +27,7 @@ func mapKey2Slot(key []byte) int {
 		}
 	}
 
-	return int(crc32.ChecksumIEEE(hashKey) % uint32(databases))
+	return int(crc32.ChecksumIEEE(hashKey) % uint32(slot_num))
 }
 
 func checkKeysInSameSlot(keys [][]byte) (int, error) {

@@ -136,7 +136,7 @@ func runSlotInit(isForce bool) error {
 			return errors.New("slots already exists. use -f flag to force init")
 		}
 	}
-	err := models.InitSlotSet(zkConn, productName, databases)
+	err := models.InitSlotSet(zkConn, productName, slot_num)
 	if err != nil {
 		return errors.Trace(err)
 	}

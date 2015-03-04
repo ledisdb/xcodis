@@ -68,7 +68,7 @@ func isMulOp(op string) bool {
 }
 
 func validSlot(i int) bool {
-	if i < 0 || i >= databases {
+	if i < 0 || i >= slot_num {
 		return false
 	}
 
@@ -312,7 +312,7 @@ type Conf struct {
 	f           topology.ZkFactory
 	net_timeout int //seconds
 	broker      string
-	databases   int
+	slot_num    int
 }
 
 func LoadConf(configFile string) (*Conf, error) {
@@ -340,9 +340,9 @@ func LoadConf(configFile string) (*Conf, error) {
 		log.Fatalf("invalid config: need broker entry is missing in %s", configFile)
 	}
 
-	srvConf.databases, _ = conf.ReadInt("databases", 16)
-	if srvConf.broker == "ledisdb" && srvConf.databases > 256 {
-		log.Fatalf("invalid config: ledisdb only supports maximum 256 databases in %s", configFile)
+	srvConf.slot_num, _ = conf.ReadInt("slot_num", 16)
+	if srvConf.broker == "ledisdb" && srvConf.slot_num > 256 {
+		log.Fatalf("invalid config: ledisdb only supports maximum 256 slot num in %s", configFile)
 	}
 
 	srvConf.net_timeout, _ = conf.ReadInt("net_timeout", 5)

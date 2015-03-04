@@ -35,7 +35,7 @@ var (
 	zkLock      zkhelper.ZLocker
 	livingNode  string
 	broker      = "ledisdb"
-	databases   = 16
+	slot_num    = 16
 )
 
 const LedisBroker = "ledisdb"
@@ -223,7 +223,7 @@ func main() {
 	zkLock = utils.GetZkLock(zkConn, productName)
 
 	broker, _ = config.ReadString("broker", "ledisdb")
-	databases, _ = config.ReadInt("databases", 16)
+	slot_num, _ = config.ReadInt("slot_num", 16)
 
 	log.Debugf("product: %s", productName)
 	log.Debugf("zk: %s", zkAddr)
