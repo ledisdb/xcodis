@@ -30,6 +30,8 @@ import (
 	"github.com/ngaut/tokenlimiter"
 )
 
+var databases int = 16
+
 type Slot struct {
 	slotInfo    *models.Slot
 	groupInfo   *models.ServerGroup
@@ -42,7 +44,7 @@ type OnSuicideFun func() error
 //change field not allowed whitout Lock()
 type Server struct {
 	mu     sync.RWMutex
-	slots  [models.DEFAULT_SLOT_NUM]*Slot
+	slots  []*Slot
 	top    *topo.Topology
 	evtbus chan interface{}
 
@@ -593,7 +595,8 @@ func (s *Server) waitOnline() {
 }
 
 func (s *Server) FillSlots() {
-	for i := 0; i < models.DEFAULT_SLOT_NUM; i++ {
+	s.slots = make([]*Slot, databases)
+	for i := 0; i < databases; i++ {
 		s.fillSlot(i, false)
 	}
 }
@@ -623,6 +626,8 @@ func NewServer(addr string, debugVarAddr string, conf *Conf) *Server {
 	}
 
 	s.broker = conf.broker
+
+	databases = conf.databases
 
 	s.mu.Lock()
 	s.pi.Id = conf.proxyId

@@ -21,7 +21,7 @@ Yet another redis proxy based on [codis](https://github.com/wandoulabs/codis)
 
 + Uses db index to represent slot concept in codis.
 + Uses server + db as the connection pool key.
-+ `DEFAULT_SLOT_NUM` must equal redis/ledisdb databases. 16 is the default for redis, and ledisdb only supports 16 now. (may change later.)
++ `databases` in config must equal redis/ledisdb databases. 16 is the default for redis and ledisdb, the maximum number for ledisdb is 256.
 + Uses `scan` + `migrate` in redis for slot migration.
 + Uses `xmigrate` + `xmigratedb` in ledisdb for slot migration.
 + Removes dashboard. 

@@ -38,6 +38,7 @@ func InitEnv() {
 			zkAddr:      "localhost:2181",
 			net_timeout: 5,
 			f:           func(string) (zkhelper.Conn, error) { return conn, nil },
+			databases:   16,
 		}
 
 		//init action path
@@ -48,7 +49,7 @@ func InitEnv() {
 		}
 
 		//init slot
-		err = models.InitSlotSet(conn, conf.productName, models.DEFAULT_SLOT_NUM)
+		err = models.InitSlotSet(conn, conf.productName, conf.databases)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -69,12 +70,12 @@ func InitEnv() {
 		g2.AddServer(conn, s2)
 
 		//set slot range
-		err = models.SetSlotRange(conn, conf.productName, 0, models.DEFAULT_SLOT_NUM/2-1, 1, models.SLOT_STATUS_ONLINE)
+		err = models.SetSlotRange(conn, conf.productName, 0, conf.databases/2-1, 1, models.SLOT_STATUS_ONLINE)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		err = models.SetSlotRange(conn, conf.productName, models.DEFAULT_SLOT_NUM/2, models.DEFAULT_SLOT_NUM-1, 2, models.SLOT_STATUS_ONLINE)
+		err = models.SetSlotRange(conn, conf.productName, conf.databases/2, databases-1, 2, models.SLOT_STATUS_ONLINE)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -8,7 +8,7 @@ import (
 	"hash/crc32"
 
 	"fmt"
-	"github.com/siddontang/xcodis/models"
+	// "github.com/siddontang/xcodis/models"
 )
 
 const (
@@ -27,7 +27,7 @@ func mapKey2Slot(key []byte) int {
 		}
 	}
 
-	return int(crc32.ChecksumIEEE(hashKey) % models.DEFAULT_SLOT_NUM)
+	return int(crc32.ChecksumIEEE(hashKey) % uint32(databases))
 }
 
 func checkKeysInSameSlot(keys [][]byte) (int, error) {

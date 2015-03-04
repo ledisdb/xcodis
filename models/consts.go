@@ -8,5 +8,5 @@ const (
 )
 
 const (
-	DEFAULT_SLOT_NUM = 16
+//DEFAULT_SLOT_NUM = 16
 )
