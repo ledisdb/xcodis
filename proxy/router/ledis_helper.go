@@ -6,14 +6,26 @@ const (
 	LedisBroker = "ledisdb"
 )
 
-func initWhiteListCommand() {
-	regCmdType := func(tp string, cmds ...string) {
+//for ledisdb
+var (
+	whiteTypeCommand = make(map[string]string)
+	whiteXCommand    = make(map[string]struct{})
+)
+
+func init() {
+	regTypeCmd := func(tp string, cmds ...string) {
 		for _, cmd := range cmds {
-			whiteListCommand[cmd] = tp
+			whiteTypeCommand[cmd] = tp
 		}
 	}
 
-	regCmdType("KV",
+	regXCmd := func(cmds ...string) {
+		for _, cmd := range cmds {
+			whiteXCommand[cmd] = struct{}{}
+		}
+	}
+
+	regTypeCmd("KV",
 		"DECR",
 		"DECRby",
 		"DEL",
@@ -40,7 +52,7 @@ func initWhiteListCommand() {
 		"GETBIT",
 		"SETBIT")
 
-	regCmdType("HASH",
+	regTypeCmd("HASH",
 		"HDEL",
 		"HEXISTS",
 		"HGET",
@@ -60,7 +72,7 @@ func initWhiteListCommand() {
 		"HPERSIST",
 		"HKEYEXISTS")
 
-	regCmdType("LIST",
+	regTypeCmd("LIST",
 		"LINDEX",
 		"LLEN",
 		"LPOP",
@@ -76,7 +88,7 @@ func initWhiteListCommand() {
 		"LPERSIST",
 		"LKEYEXISTS")
 
-	regCmdType("SET",
+	regTypeCmd("SET",
 		"SADD",
 		"SISMEMBER",
 		"SMEMBERS",
@@ -97,7 +109,7 @@ func initWhiteListCommand() {
 		"SUNION",
 		"SUNIONSTORE")
 
-	regCmdType("ZSET",
+	regTypeCmd("ZSET",
 		"ZADD",
 		"ZCARD",
 		"ZCOUNT",
@@ -125,13 +137,20 @@ func initWhiteListCommand() {
 		//below, all keys would have same hash (maybe same tag).
 		"ZUNIONSTORE",
 		"ZINTERSTORE")
-}
 
-func getOpGroup(op string) string {
-	s, ok := whiteListCommand[op]
-	if !ok {
-		return ""
-	} else {
-		return s
-	}
+	// below command, we can not know its type for the key,
+	// so let ledisdb migrate all type datas for the key.
+	regTypeCmd("ALL",
+		"RESTORE")
+
+	// below command is also supported, but should not be used in migration.
+	regTypeCmd("SERVER",
+		"PING",
+		"QUIT",
+		"SELECT",
+		"AUTH",
+		"ECHO")
+
+	// for ledisdb, the first argument for some x prefix commands is the type
+	regXCmd("XRESTORE", "XDUMP")
 }

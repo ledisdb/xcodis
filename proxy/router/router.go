@@ -118,7 +118,7 @@ func (s *Server) fillSlot(i int, force bool) {
 	s.counter.Add("FillSlot", 1)
 }
 
-func (s *Server) handleMigrateState(slotIndex int, op string, keys [][]byte) error {
+func (s *Server) handleMigrateState(slotIndex int, op string, group string, keys [][]byte) error {
 	shd := s.slots[slotIndex]
 	if shd.slotInfo.State.Status != models.SLOT_STATUS_MIGRATE {
 		return nil
@@ -152,7 +152,7 @@ func (s *Server) handleMigrateState(slotIndex int, op string, keys [][]byte) err
 	//migrate multi keys
 	for _, key := range keys {
 		if s.broker == LedisBroker {
-			err = ledisWriteMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, getOpGroup(op), key, slotIndex)
+			err = ledisWriteMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, group, key, slotIndex)
 		} else {
 			err = writeMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, key, slotIndex)
 		}
@@ -203,13 +203,6 @@ func (s *Server) filter(opstr string, keys [][]byte, c *session) (next bool, err
 		return false, nil
 	}
 
-	if s.broker == LedisBroker {
-		group := getOpGroup(opstr)
-		if len(group) == 0 {
-			return false, errors.Trace(fmt.Errorf("%s unsupported in ledisdb", opstr))
-		}
-	}
-
 	if isMulOp(opstr) {
 		if len(keys) == 1 { //can send to redis directly
 			return true, nil
@@ -232,14 +225,20 @@ func (s *Server) redisTunnel(c *session) error {
 		return errors.Trace(err)
 	}
 
+	opstr := strings.ToUpper(string(op))
+
+	var group string
+	group, keys, err = s.getOpGroupKeys(opstr, keys)
+	if err != nil {
+		return errors.Trace(err)
+	}
+
 	if len(keys) == 0 {
 		keys = [][]byte{[]byte("fakeKey")}
 	}
 
 	start := time.Now()
 	k := keys[0]
-
-	opstr := strings.ToUpper(string(op))
 
 	//log.Debugf("op: %s, %s", opstr, keys[0])
 	next, err := s.filter(opstr, keys, c)
@@ -287,7 +286,7 @@ check_state:
 		s.concurrentLimiter.Put(token)
 	}()
 
-	if err := s.handleMigrateState(i, opstr, mkeys); err != nil {
+	if err := s.handleMigrateState(i, opstr, group, mkeys); err != nil {
 		return errors.Trace(err)
 	}
 
@@ -313,6 +312,31 @@ check_state:
 	}
 	s.pools.ReleaseConn(redisConn)
 	return errors.Trace(clientErr)
+}
+
+// for ledisdb, we must know the op data type (group) for migration.
+func (s *Server) getOpGroupKeys(op string, keys [][]byte) (string, [][]byte, error) {
+	op = strings.ToUpper(op)
+
+	if s.broker != LedisBroker {
+		return "ALL", keys, nil
+	}
+
+	group, ok := whiteTypeCommand[op]
+	if ok {
+		return group, keys, nil
+	}
+
+	// below commands, the first arg is group
+	_, ok = whiteXCommand[op]
+	if ok {
+		if len(keys) < 2 {
+			return "", nil, fmt.Errorf("%s must have a data type and at least a key", op)
+		}
+		return strings.ToUpper(string(keys[0])), keys[1:], nil
+	}
+
+	return "", nil, fmt.Errorf("%s is not supported now", op)
 }
 
 func (s *Server) handleConn(c net.Conn) {

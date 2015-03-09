@@ -39,6 +39,7 @@ func InitEnv() {
 			net_timeout: 5,
 			f:           func(string) (zkhelper.Conn, error) { return conn, nil },
 			slot_num:    16,
+			//broker:      LedisBroker,
 		}
 
 		//init action path

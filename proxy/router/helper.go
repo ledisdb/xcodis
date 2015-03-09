@@ -40,17 +40,12 @@ var blackList = []string{
 var (
 	blackListCommand = make(map[string]struct{})
 	OK_BYTES         = []byte("+OK\r\n")
-
-	//for ledisdb
-	whiteListCommand = make(map[string]string)
 )
 
 func init() {
 	for _, k := range blackList {
 		blackListCommand[k] = struct{}{}
 	}
-
-	initWhiteListCommand()
 }
 
 func allowOp(op string) bool {
