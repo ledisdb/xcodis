@@ -336,9 +336,6 @@ func LoadConf(configFile string) (*Conf, error) {
 	}
 
 	srvConf.slot_num, _ = conf.ReadInt("slot_num", 16)
-	if srvConf.broker == "ledisdb" && srvConf.slot_num > 256 {
-		log.Fatalf("invalid config: ledisdb only supports maximum 256 slot num in %s", configFile)
-	}
 
 	srvConf.net_timeout, _ = conf.ReadInt("net_timeout", 5)
 
