@@ -5,9 +5,7 @@ package redispool
 
 import (
 	"bufio"
-	"fmt"
 	"net"
-	"strings"
 )
 
 //not thread-safe
@@ -55,14 +53,8 @@ func (pc *PooledConn) BufioReader() *bufio.Reader {
 	return pc.r
 }
 
-// key format addr[/db]
 func NewConnection(key string) (*Conn, error) {
-	seps := strings.Split(key, "/")
-	if len(seps) != 2 && len(seps) != 1 {
-		return nil, fmt.Errorf("invalid connection key format %s, must addr[/db]", key)
-	}
-
-	addr := seps[0]
+	addr := key
 
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {

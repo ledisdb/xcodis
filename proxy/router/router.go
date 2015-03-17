@@ -132,7 +132,7 @@ func (s *Server) handleMigrateState(slotIndex int, op string, group string, keys
 		log.Fatalf("the same migrate src and dst, %+v", shd)
 	}
 
-	redisConn, err := s.pools.GetConn(fmt.Sprintf("%s/%d", shd.migrateFrom.Master(), slotIndex))
+	redisConn, err := s.pools.GetConn(shd.migrateFrom.Master())
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -291,7 +291,7 @@ check_state:
 	}
 
 	//get redis connection
-	redisConn, err := s.pools.GetConn(fmt.Sprintf("%s/%d", s.slots[i].dst.Master(), i))
+	redisConn, err := s.pools.GetConn(s.slots[i].dst.Master())
 	if err != nil {
 		return errors.Trace(err)
 	}
