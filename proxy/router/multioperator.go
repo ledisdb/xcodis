@@ -9,7 +9,7 @@ import (
 	"github.com/garyburd/redigo/redis"
 	"github.com/juju/errors"
 	log "github.com/ngaut/logging"
-	respcoding "github.com/ngaut/resp"
+	"github.com/siddontang/goredis"
 )
 
 type MultiOperator struct {
@@ -20,7 +20,9 @@ type MultiOperator struct {
 type MulOp struct {
 	op   string
 	keys [][]byte
-	w    DeadlineReadWriter
+
+	conn *goredis.Conn
+
 	wait chan error
 }
 
@@ -56,9 +58,9 @@ func newPool(server, password string) *redis.Pool {
 	}
 }
 
-func (oper *MultiOperator) handleMultiOp(op string, keys [][]byte, w DeadlineReadWriter) error {
+func (oper *MultiOperator) handleMultiOp(op string, keys [][]byte, c *goredis.Conn) error {
 	wait := make(chan error, 1)
-	oper.q <- &MulOp{op: op, keys: keys, w: w, wait: wait}
+	oper.q <- &MulOp{op: op, keys: keys, conn: c, wait: wait}
 	return <-wait
 }
 
@@ -83,7 +85,7 @@ func (oper *MultiOperator) work() {
 	}
 }
 
-func (oper *MultiOperator) mgetResults(mop *MulOp) ([]byte, error) {
+func (oper *MultiOperator) mgetResults(mop *MulOp) ([]interface{}, error) {
 	results := make([]interface{}, len(mop.keys))
 	conn := oper.pool.Get()
 	defer conn.Close()
@@ -102,8 +104,7 @@ func (oper *MultiOperator) mgetResults(mop *MulOp) ([]byte, error) {
 		}
 	}
 
-	b, err := respcoding.Marshal(results)
-	return b, errors.Trace(err)
+	return results, nil
 }
 
 func (oper *MultiOperator) mget(mop *MulOp) {
@@ -120,42 +121,41 @@ func (oper *MultiOperator) mget(mop *MulOp) {
 		return
 	}
 
-	if err := mop.w.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+	if err := mop.conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		mop.wait <- errors.Trace(err)
 		return
 	}
 
-	_, err = mop.w.Write(b)
+	err = mop.conn.SendValue(b)
 	mop.wait <- errors.Trace(err)
 }
 
-func (oper *MultiOperator) delResults(mop *MulOp) ([]byte, error) {
+func (oper *MultiOperator) delResults(mop *MulOp) (int64, error) {
 	var results int64
 	conn := oper.pool.Get()
 	defer conn.Close()
 	for _, k := range mop.keys {
 		n, err := conn.Do(mop.op, k)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return 0, errors.Trace(err)
 		}
 		results += n.(int64)
 	}
 
-	b, err := respcoding.Marshal(int(results))
-	return b, errors.Trace(err)
+	return results, nil
 }
 
-func (oper *MultiOperator) msetResults(mop *MulOp) ([]byte, error) {
+func (oper *MultiOperator) msetResults(mop *MulOp) (string, error) {
 	conn := oper.pool.Get()
 	defer conn.Close()
 	for i := 0; i < len(mop.keys); i += 2 {
 		_, err := conn.Do("set", mop.keys[i], mop.keys[i+1]) //change mset to set
 		if err != nil {
-			return nil, errors.Trace(err)
+			return "", errors.Trace(err)
 		}
 	}
 
-	return OK_BYTES, nil
+	return "OK", nil
 }
 
 func (oper *MultiOperator) mset(mop *MulOp) {
@@ -172,12 +172,12 @@ func (oper *MultiOperator) mset(mop *MulOp) {
 		return
 	}
 
-	if err := mop.w.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+	if err := mop.conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		mop.wait <- errors.Trace(err)
 		return
 	}
 
-	_, err = mop.w.Write(b)
+	err = mop.conn.SendValue(b)
 	mop.wait <- errors.Trace(err)
 }
 
@@ -195,11 +195,11 @@ func (oper *MultiOperator) del(mop *MulOp) {
 		return
 	}
 
-	if err := mop.w.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+	if err := mop.conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		mop.wait <- errors.Trace(err)
 		return
 	}
 
-	_, err = mop.w.Write(b)
+	err = mop.conn.SendValue(b)
 	mop.wait <- errors.Trace(err)
 }

@@ -4,7 +4,7 @@
 package router
 
 import (
-	"strings"
+	"reflect"
 	"testing"
 
 	"github.com/alicebob/miniredis"
@@ -23,7 +23,7 @@ func TestMgetResults(t *testing.T) {
 	redisrv.Set("a", "a")
 	redisrv.Set("b", "b")
 	redisrv.Set("c", "c")
-	buf, err := moper.mgetResults(&MulOp{
+	ay, err := moper.mgetResults(&MulOp{
 		op: "mget",
 		keys: [][]byte{[]byte("a"),
 			[]byte("b"), []byte("c"), []byte("x")}})
@@ -31,12 +31,11 @@ func TestMgetResults(t *testing.T) {
 		t.Error(err)
 	}
 
-	res := string(buf)
-	if !strings.Contains(res, "a") || !strings.Contains(res, "b") || !strings.Contains(res, "c") {
-		t.Error("not match", res)
+	if !reflect.DeepEqual(ay, []interface{}{[]byte("a"), []byte("b"), []byte("c"), nil}) {
+		t.Fatalf("%v", ay)
 	}
 
-	buf, err = moper.mgetResults(&MulOp{
+	_, err = moper.mgetResults(&MulOp{
 		op: "mget",
 		keys: [][]byte{[]byte("x"),
 			[]byte("c"), []byte("x")}})
@@ -44,7 +43,7 @@ func TestMgetResults(t *testing.T) {
 		t.Error(err)
 	}
 
-	buf, err = moper.mgetResults(&MulOp{
+	_, err = moper.mgetResults(&MulOp{
 		op: "mget",
 		keys: [][]byte{[]byte("x"),
 			[]byte("y"), []byte("x")}})
@@ -72,8 +71,7 @@ func TestDeltResults(t *testing.T) {
 		t.Error(err)
 	}
 
-	res := string(buf)
-	if !strings.Contains(res, "3") {
-		t.Error("not match", res)
+	if buf != 3 {
+		t.Fatalf("%d not match 3", buf)
 	}
 }

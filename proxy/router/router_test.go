@@ -4,6 +4,7 @@
 package router
 
 import (
+	"flag"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -15,8 +16,12 @@ import (
 	"github.com/juju/errors"
 	log "github.com/ngaut/logging"
 	"github.com/ngaut/zkhelper"
+	ledisconfig "github.com/siddontang/ledisdb/config"
+	ledis "github.com/siddontang/ledisdb/server"
 	"github.com/siddontang/xcodis/models"
 )
+
+var testBroker = flag.String("broker", "ledisdb", "broker, ledisdb or redis")
 
 var (
 	conf       *Conf
@@ -26,6 +31,8 @@ var (
 	conn       zkhelper.Conn
 	redis1     *miniredis.Miniredis
 	redis2     *miniredis.Miniredis
+	ledis1     *ledis.App
+	ledis2     *ledis.App
 	proxyMutex sync.Mutex
 )
 
@@ -38,7 +45,7 @@ func InitEnv() {
 			zkAddr:      "localhost:2181",
 			net_timeout: 5,
 			f:           func(string) (zkhelper.Conn, error) { return conn, nil },
-			slot_num:    16,
+			slot_num:    1024,
 			//broker:      LedisBroker,
 		}
 
@@ -61,11 +68,42 @@ func InitEnv() {
 		g2 := models.NewServerGroup(conf.productName, 2)
 		g2.Create(conn)
 
-		redis1, _ := miniredis.Run()
-		redis2, _ := miniredis.Run()
+		var addr1 string
+		var addr2 string
 
-		s1 := models.NewServer(models.SERVER_TYPE_MASTER, redis1.Addr())
-		s2 := models.NewServer(models.SERVER_TYPE_MASTER, redis2.Addr())
+		if *testBroker == "redis" {
+			redis1, _ := miniredis.Run()
+			redis2, _ := miniredis.Run()
+			addr1 = redis1.Addr()
+			addr2 = redis2.Addr()
+		} else {
+			addr1 = "127.0.0.1:11181"
+			addr2 = "127.0.0.1:11182"
+
+			cfg1 := ledisconfig.NewConfigDefault()
+			cfg1.DataDir = "/tmp/xcodis_ledis/1"
+			cfg1.Addr = addr1
+			cfg1.Databases = 1024
+			ledis1, err = ledis.NewApp(cfg1)
+			if err != nil {
+				log.Fatal(err)
+			}
+			go ledis1.Run()
+
+			cfg2 := ledisconfig.NewConfigDefault()
+			cfg2.DataDir = "/tmp/xcodis_ledis/2"
+			cfg2.Addr = addr2
+			cfg2.Databases = 1024
+			ledis2, err = ledis.NewApp(cfg2)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			go ledis2.Run()
+		}
+
+		s1 := models.NewServer(models.SERVER_TYPE_MASTER, addr1)
+		s2 := models.NewServer(models.SERVER_TYPE_MASTER, addr2)
 
 		g1.AddServer(conn, s1)
 		g2.AddServer(conn, s2)

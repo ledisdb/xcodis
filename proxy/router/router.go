@@ -4,7 +4,6 @@
 package router
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"net"
@@ -19,15 +18,13 @@ import (
 
 	"github.com/siddontang/xcodis/models"
 	"github.com/siddontang/xcodis/proxy/group"
-	"github.com/siddontang/xcodis/proxy/parser"
-	"github.com/siddontang/xcodis/proxy/redispool"
-
-	"github.com/siddontang/xcodis/proxy/cachepool"
 
 	"github.com/juju/errors"
 	stats "github.com/ngaut/gostats"
 	log "github.com/ngaut/logging"
 	"github.com/ngaut/tokenlimiter"
+
+	"github.com/siddontang/goredis"
 )
 
 var slot_num int = 16
@@ -55,7 +52,8 @@ type Server struct {
 	concurrentLimiter *tokenlimiter.TokenLimiter
 
 	moper *MultiOperator
-	pools *cachepool.CachePool
+	pools *serverPool
+
 	//counter
 	counter     *stats.Counters
 	OnSuicide   OnSuicideFun
@@ -111,7 +109,7 @@ func (s *Server) fillSlot(i int, force bool) {
 			log.Fatal(err)
 		}
 		slot.migrateFrom = group.NewGroup(*from)
-		//s.pools.AddPool(slot.migrateFrom.Master())
+		s.pools.AddPool(slot.migrateFrom.Master())
 	}
 
 	s.slots[i] = slot
@@ -132,54 +130,45 @@ func (s *Server) handleMigrateState(slotIndex int, op string, group string, keys
 		log.Fatalf("the same migrate src and dst, %+v", shd)
 	}
 
+	hostPort := strings.Split(shd.dst.Master(), ":")
+	if len(hostPort) != 2 {
+		return errors.Errorf("invalid migrate dest address " + shd.dst.Master())
+	}
+
 	redisConn, err := s.pools.GetConn(shd.migrateFrom.Master())
 	if err != nil {
 		return errors.Trace(err)
 	}
 
-	defer s.pools.ReleaseConn(redisConn)
+	defer redisConn.Close()
 
-	if redisConn.(*redispool.PooledConn).DB != slotIndex {
-		if err := selectDB(redisConn.(*redispool.PooledConn), slotIndex, s.net_timeout); err != nil {
-			redisConn.Close()
+	timeoutMs := 30 * 1000
+
+	if s.broker != LedisBroker {
+		// for redis, first do select
+		_, err = goredis.String(redisConn.Do("SELECT", slotIndex))
+		if err != nil {
+			redisConn.Finalize()
 			return errors.Trace(err)
 		}
-		redisConn.(*redispool.PooledConn).DB = slotIndex
 	}
 
-	redisReader := redisConn.(*redispool.PooledConn).BufioReader()
-
-	//migrate multi keys
+	var ok string
 	for _, key := range keys {
 		if s.broker == LedisBroker {
-			err = ledisWriteMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, group, key, slotIndex)
+			// for ledisdb, we use XSELECT db THEN commands
+			ok, err = goredis.String(redisConn.Do("XSELECT", slotIndex, "THEN", "XMIGRATE", hostPort[0], hostPort[1], group, key, slotIndex, timeoutMs))
 		} else {
-			err = writeMigrateKeyCmd(redisConn.(*redispool.PooledConn), shd.dst.Master(), 30*1000, key, slotIndex)
+			ok, err = goredis.String(redisConn.Do("MIGRATE", hostPort[0], hostPort[1], key, slotIndex, timeoutMs))
 		}
 
 		if err != nil {
-			redisConn.Close()
+			redisConn.Finalize()
 			log.Warningf("migrate key %s error", string(key))
 			return errors.Trace(err)
 		}
 
-		//handle migrate result
-		resp, err := parser.Parse(redisReader)
-		if err != nil {
-			redisConn.Close()
-			return errors.Trace(err)
-		}
-
-		result, err := resp.Bytes()
-
-		log.Debug("migrate", string(key), "from", shd.migrateFrom.Master(), "to", shd.dst.Master(),
-			string(result))
-
-		if resp.Type == parser.ErrorResp {
-			redisConn.Close()
-			log.Error(string(key), string(resp.Raw), "migrateFrom", shd.migrateFrom.Master())
-			return errors.New(string(resp.Raw))
-		}
+		log.Debug("migrate", string(key), "from", shd.migrateFrom.Master(), "to", shd.dst.Master(), string(ok))
 
 		s.counter.Add("Migrate", 1)
 	}
@@ -188,11 +177,7 @@ func (s *Server) handleMigrateState(slotIndex int, op string, group string, keys
 }
 
 func (s *Server) filter(opstr string, keys [][]byte, c *session) (next bool, err error) {
-	if !allowOp(opstr) {
-		return false, errors.Trace(fmt.Errorf("%s not allowed", opstr))
-	}
-
-	shouldClose, handled, err := handleSpecCommand(opstr, c, keys, s.net_timeout)
+	shouldClose, handled, err := s.handleSpecCommand(opstr, keys, c)
 	if shouldClose { //quit command
 		return false, errors.Trace(io.EOF)
 	}
@@ -207,28 +192,59 @@ func (s *Server) filter(opstr string, keys [][]byte, c *session) (next bool, err
 		if len(keys) == 1 { //can send to redis directly
 			return true, nil
 		} else {
-			return false, s.moper.handleMultiOp(opstr, keys, c)
+			return false, s.moper.handleMultiOp(opstr, keys, c.Conn)
 		}
 	}
 
 	return true, nil
 }
 
+func (s *Server) handleSpecCommand(cmd string, keys [][]byte, c *session) (bool, bool, error) {
+	var v interface{} = nil
+	shouldClose := false
+
+	switch cmd {
+	case "PING":
+		v = "PONG"
+	case "QUIT":
+		v = "OK"
+		shouldClose = true
+	case "SELECT":
+		v = "OK"
+	case "AUTH":
+		v = "OK"
+	case "ECHO":
+		if len(keys) > 0 {
+			v = keys[0]
+		} else {
+			return true, false, nil
+		}
+	default:
+		return shouldClose, false, nil
+	}
+
+	if v != nil {
+		c.SetWriteDeadline(time.Now().Add(time.Duration(s.net_timeout) * time.Second))
+
+		err := c.SendValue(v)
+		if err != nil {
+			return shouldClose, true, errors.Errorf("%s, cmd:%s", err.Error(), cmd)
+		}
+
+		return shouldClose, true, nil
+	}
+
+	return shouldClose, false, nil
+}
+
 func (s *Server) redisTunnel(c *session) error {
-	resp, err := parser.Parse(c.r) // read client request
+	op, keys, err := c.ReadRequest()
 	if err != nil {
 		return errors.Trace(err)
 	}
-
-	op, keys, err := resp.GetOpKeys()
-	if err != nil {
-		return errors.Trace(err)
-	}
-
-	opstr := strings.ToUpper(string(op))
 
 	var group string
-	group, keys, err = s.getOpGroupKeys(opstr, keys)
+	group, keys, err = s.getOpGroupKeys(op, keys)
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -241,19 +257,19 @@ func (s *Server) redisTunnel(c *session) error {
 	k := keys[0]
 
 	//log.Debugf("op: %s, %s", opstr, keys[0])
-	next, err := s.filter(opstr, keys, c)
+	next, err := s.filter(op, keys, c)
 	if err != nil {
 		return errors.Trace(err)
 	}
 
-	s.counter.Add(opstr, 1)
+	s.counter.Add(op, 1)
 	s.counter.Add("ops", 1)
 	if !next {
 		return nil
 	}
 
 	//must check multi keys in same slot
-	i, mkeys, err := checkMigrateKeys(opstr, keys)
+	i, mkeys, err := checkMigrateKeys(op, keys)
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -279,14 +295,14 @@ check_state:
 		s.mu.RUnlock()
 		sec := time.Since(start).Seconds()
 		if sec > 2 {
-			log.Warningf("op: %s, key:%s, on: %s, too long %d seconds, client: %s", opstr,
+			log.Warningf("op: %s, key:%s, on: %s, too long %d seconds, client: %s", op,
 				string(k), s.slots[i].dst.Master(), int(sec), c.RemoteAddr().String())
 		}
 		recordResponseTime(s.counter, time.Duration(sec)*1000)
 		s.concurrentLimiter.Put(token)
 	}()
 
-	if err := s.handleMigrateState(i, opstr, group, mkeys); err != nil {
+	if err := s.handleMigrateState(i, op, group, mkeys); err != nil {
 		return errors.Trace(err)
 	}
 
@@ -296,32 +312,46 @@ check_state:
 		return errors.Trace(err)
 	}
 
-	if redisConn.(*redispool.PooledConn).DB != i {
-		if err := selectDB(redisConn.(*redispool.PooledConn), i, s.net_timeout); err != nil {
-			redisConn.Close()
-			s.pools.ReleaseConn(redisConn)
+	var reply interface{}
 
+	if s.broker != LedisBroker {
+		if _, err := goredis.String(redisConn.Do("SELECT", i)); err != nil {
+			redisConn.Finalize()
 			return errors.Trace(err)
 		}
-		redisConn.(*redispool.PooledConn).DB = i
+
+		args := make([]interface{}, len(keys))
+		for i := range keys {
+			args[i] = keys[i]
+		}
+
+		reply, err = redisConn.Do(op, args...)
+	} else {
+		args := make([]interface{}, 0, len(keys)+3)
+		args = append(args, i, "THEN", op)
+		for _, key := range keys {
+			args = append(args, key)
+		}
+
+		reply, err = redisConn.Do("XSELECT", args...)
 	}
 
-	redisErr, clientErr := forward(c, redisConn.(*redispool.PooledConn), resp, s.net_timeout)
-	if redisErr != nil {
-		redisConn.Close()
+	if err != nil {
+		redisConn.Finalize()
+		return errors.Trace(err)
 	}
-	s.pools.ReleaseConn(redisConn)
-	return errors.Trace(clientErr)
+
+	c.SetWriteDeadline(time.Now().Add(time.Duration(s.net_timeout) * time.Second))
+
+	err = c.SendValue(reply)
+
+	redisConn.Close()
+
+	return errors.Trace(err)
 }
 
 // for ledisdb, we must know the op data type (group) for migration.
 func (s *Server) getOpGroupKeys(op string, keys [][]byte) (string, [][]byte, error) {
-	op = strings.ToUpper(op)
-
-	if s.broker != LedisBroker {
-		return "ALL", keys, nil
-	}
-
 	group, ok := whiteTypeCommand[op]
 	if ok {
 		return group, keys, nil
@@ -343,9 +373,10 @@ func (s *Server) handleConn(c net.Conn) {
 	log.Info("new connection", c.RemoteAddr())
 
 	s.counter.Add("connections", 1)
+
+	conn, _ := goredis.NewConnWithSize(c, 4096, 4096)
 	client := &session{
-		Conn:     c,
-		r:        bufio.NewReader(c),
+		Conn:     conn,
 		CreateAt: time.Now(),
 	}
 
@@ -362,7 +393,7 @@ func (s *Server) handleConn(c net.Conn) {
 			log.Infof("close connection %v, %+v", c.RemoteAddr(), client)
 		}
 
-		c.Close()
+		client.Close()
 		s.counter.Add("connections", -1)
 	}()
 
@@ -646,7 +677,7 @@ func NewServer(addr string, debugVarAddr string, conf *Conf) *Server {
 		addr:              addr,
 		concurrentLimiter: tokenlimiter.NewTokenLimiter(100),
 		moper:             NewMultiOperator(addr),
-		pools:             cachepool.NewCachePool(),
+		pools:             newServerPool(),
 	}
 
 	s.broker = conf.broker
