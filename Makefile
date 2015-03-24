@@ -18,5 +18,6 @@ clean:
 	@if [ -d test ]; then cd test && rm -f *.out *.log *.rdb; fi
 
 test:
-	godep go test ./... -race 
-	godep go test ./proxy/router -broker="ledisdb"
+	godep go test -race ./models 
+	godep go test -race ./proxy/router 
+	godep go test -race ./proxy/router -broker="ledisdb"
