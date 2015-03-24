@@ -78,7 +78,7 @@ func thridAsKey(keys [][]byte) ([][]byte, error) {
 	return keys, nil
 }
 
-func (s *session) ReadRequest() (op string, keys [][]byte, err error) {
+func (s *session) ReadRequest() (op string, keys [][]byte, args []interface{}, err error) {
 	keys, err = s.ReceiveRequest()
 	if err != nil {
 		return
@@ -92,11 +92,16 @@ func (s *session) ReadRequest() (op string, keys [][]byte, err error) {
 	op = strings.ToUpper(string(keys[0]))
 	keys = keys[1:]
 
+	args = make([]interface{}, 0, len(keys))
+	for _, key := range keys {
+		args = append(args, key)
+	}
+
 	f, ok := keyFun[op]
 	if !ok {
-		return op, keys, nil
+		return
 	}
 
 	keys, err = f(keys)
-	return op, keys, errors.Trace(err)
+	return op, keys, args, errors.Trace(err)
 }

@@ -21,7 +21,7 @@ import (
 	"github.com/siddontang/xcodis/models"
 )
 
-var testBroker = flag.String("broker", "ledisdb", "broker, ledisdb or redis")
+var testBroker = flag.String("broker", "redis", "broker, ledisdb or redis")
 
 var (
 	conf       *Conf

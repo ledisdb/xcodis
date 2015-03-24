@@ -238,7 +238,7 @@ func (s *Server) handleSpecCommand(cmd string, keys [][]byte, c *session) (bool,
 }
 
 func (s *Server) redisTunnel(c *session) error {
-	op, keys, err := c.ReadRequest()
+	op, keys, args, err := c.ReadRequest()
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -320,20 +320,19 @@ check_state:
 			return errors.Trace(err)
 		}
 
-		args := make([]interface{}, len(keys))
-		for i := range keys {
-			args[i] = keys[i]
-		}
-
 		reply, err = redisConn.Do(op, args...)
 	} else {
-		args := make([]interface{}, 0, len(keys)+3)
-		args = append(args, i, "THEN", op)
-		for _, key := range keys {
-			args = append(args, key)
-		}
+		// args := make([]interface{}, 0, len(keys)+3)
+		// args = append(args, i, "THEN", op)
+		// for _, key := range keys {
+		// 	args = append(args, key)
+		// }
 
-		reply, err = redisConn.Do("XSELECT", args...)
+		a := make([]interface{}, 0, len(args)+3)
+		a = append(a, i, "THEN", op)
+		a = append(a, args...)
+
+		reply, err = redisConn.Do("XSELECT", a...)
 	}
 
 	if err != nil {
