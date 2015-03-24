@@ -9,5 +9,7 @@ before_install:
   - go install -race std
 
 script: 
-  - godep go test --race ./...
+  - godep go test -race ./models 
+  - godep go test -race ./proxy/router 
+  - godep go test -race ./proxy/router -broker="ledisdb"
 
