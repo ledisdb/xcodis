@@ -31,4 +31,4 @@ vet:
 	GO111MODULE=on go vet -mod=vendor $(PACKAGES)
 
 test:
-	GO111MODULE=on go test -mod=vendor -race $(PACKAGES)
+	GO111MODULE=on go test -mod=vendor -race -cover -coverprofile coverage.out $(PACKAGES)
