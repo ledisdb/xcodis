@@ -1,6 +1,6 @@
 # xcodis
 
-[![Build Status](https://travis-ci.org/ledisdb/xcodis.svg?branch=develop)](https://travis-ci.org/siddontang/xcodis) [![codecov](https://codecov.io/gh/ledisdb/xcodis/branch/master/graph/badge.svg)](https://codecov.io/gh/ledisdb/xcodis)
+[![Build Status](https://travis-ci.org/ledisdb/xcodis.svg?branch=develop)](https://travis-ci.org/ledisdb/xcodis) [![codecov](https://codecov.io/gh/ledisdb/xcodis/branch/master/graph/badge.svg)](https://codecov.io/gh/ledisdb/xcodis)
 
 Yet another redis proxy based on [codis](https://github.com/wandoulabs/codis)
 
@@ -8,7 +8,7 @@ Yet another redis proxy based on [codis](https://github.com/wandoulabs/codis)
 
 ## Install 
 
-+ `git clone github.com/siddontang/xcodis`
++ `git clone github.com/ledisdb/xcodis`
 + `make build`
 
 ## Why xcodis?
