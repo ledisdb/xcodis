@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/siddontang/xcodis/proxy/redispool"
+	"github.com/ledisdb/xcodis/proxy/redispool"
 
 	"github.com/juju/errors"
 )

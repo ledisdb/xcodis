@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/juju/errors"
-	"github.com/siddontang/xcodis/models"
+	"github.com/ledisdb/xcodis/models"
 
 	"github.com/docopt/docopt-go"
 	log "github.com/ngaut/logging"
-	"github.com/nu7hatch/gouuid"
+	uuid "github.com/nu7hatch/gouuid"
 )
 
 func cmdSlot(argv []string) (err error) {

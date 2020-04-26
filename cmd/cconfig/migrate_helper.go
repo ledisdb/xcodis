@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ledisdb/xcodis/models"
 	"github.com/ngaut/zkhelper"
-	"github.com/siddontang/xcodis/models"
 
 	log "github.com/ngaut/logging"
 

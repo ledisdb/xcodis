@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/ledisdb/xcodis/models"
+	"github.com/ledisdb/xcodis/utils"
 	log "github.com/ngaut/logging"
 	"github.com/ngaut/zkhelper"
-	"github.com/nu7hatch/gouuid"
-	"github.com/siddontang/xcodis/models"
-	"github.com/siddontang/xcodis/utils"
+	uuid "github.com/nu7hatch/gouuid"
 )
 
 type NodeInfo struct {

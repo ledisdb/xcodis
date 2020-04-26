@@ -13,9 +13,9 @@ import (
 	"github.com/alicebob/miniredis"
 	"github.com/garyburd/redigo/redis"
 	"github.com/juju/errors"
+	"github.com/ledisdb/xcodis/models"
 	log "github.com/ngaut/logging"
 	"github.com/ngaut/zkhelper"
-	"github.com/siddontang/xcodis/models"
 )
 
 var (

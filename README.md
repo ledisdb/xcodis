@@ -14,7 +14,7 @@ Yet another redis proxy based on [codis](https://github.com/wandoulabs/codis)
 
 ## Why xcodis?
 
-+ Supports [LedisDB](https://github.com/siddontang/ledisdb).
++ Supports [LedisDB](https://github.com/ledisdb/ledisdb).
 + Supports origin Redis, codis uses a modified version.
 
 ## Changes from codis
