@@ -52,7 +52,7 @@ github.com/juju/errors
 ## explicit
 # github.com/juju/testing v0.0.0-20191001232224-ce9dec17d28b
 ## explicit
-# github.com/ledisdb/redis-failover v0.0.0-20200426055755-fab4bedd006b
+# github.com/ledisdb/redis-failover v0.0.0-20200426064634-030de84bb2ef
 ## explicit
 github.com/ledisdb/redis-failover/failover
 # github.com/ngaut/go-zookeeper v0.0.0-20150813084940-9c3719e318c7

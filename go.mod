@@ -14,7 +14,7 @@ require (
 	github.com/juju/errors v0.0.0-20150108020425-c3aaee403f14
 	github.com/juju/loggo v0.0.0-20190526231331-6e530bcce5d8 // indirect
 	github.com/juju/testing v0.0.0-20191001232224-ce9dec17d28b // indirect
-	github.com/ledisdb/redis-failover v0.0.0-20200426055755-fab4bedd006b
+	github.com/ledisdb/redis-failover v0.0.0-20200426064634-030de84bb2ef
 	github.com/ngaut/go-zookeeper v0.0.0-20150813084940-9c3719e318c7
 	github.com/ngaut/gostats v0.0.0-20141107084648-faefc939c035
 	github.com/ngaut/logging v0.0.0-20140912081322-200eea931e87
