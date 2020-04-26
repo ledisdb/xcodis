@@ -1,16 +1,17 @@
 # xcodis
 
+[![Build Status](https://travis-ci.org/ledisdb/xcodis.svg?branch=develop)](https://travis-ci.org/siddontang/xcodis) 
+
+[![codecov](https://codecov.io/gh/ledisdb/xcodis/branch/master/graph/badge.svg)](https://codecov.io/gh/ledisdb/xcodis)
+
 Yet another redis proxy based on [codis](https://github.com/wandoulabs/codis)
 
-**Please read codis document first. [here](https://github.com/wandoulabs/codis/blob/master/doc)** 
+**Please read codis document first. [here](https://github.com/wandoulabs/codis/blob/master/doc)*
 
 ## Install 
 
-+ Install Go and set your [GOPATH](https://golang.org/doc/code.html#GOPATH)
-+ Install godep `go get github.com/tools/godep`
-+ `go get github.com/siddontang/xcodis`, it will print some messages in console, skip it. :-)
-+ cd `$GOPATH/src/github.com/siddontang/xcodis`
-+ `make`
++ `git clone github.com/siddontang/xcodis`
++ `make build`
 
 ## Why xcodis?
 
