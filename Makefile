@@ -28,7 +28,7 @@ fmt:
 	gofmt -w -s  . 2>&1 | grep -vE 'vendor' | awk '{print} END{if(NR>0) {exit 1}}'
 
 vet:
-	go vet -mod=vendor $(PACKAGES)
+	GO111MODULE=on go vet -mod=vendor $(PACKAGES)
 
 test:
-	go test -mod=vendor -race $(PACKAGES)
+	GO111MODULE=on go test -mod=vendor -race $(PACKAGES)
