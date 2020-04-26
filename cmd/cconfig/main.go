@@ -12,9 +12,9 @@ import (
 	"path"
 	"syscall"
 
+	"github.com/ledisdb/xcodis/utils"
 	"github.com/ngaut/go-zookeeper/zk"
 	"github.com/ngaut/zkhelper"
-	"github.com/siddontang/xcodis/utils"
 
 	"net/http"
 	_ "net/http/pprof"

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/siddontang/xcodis/proxy/parser"
+	"github.com/ledisdb/xcodis/proxy/parser"
 
 	"github.com/juju/errors"
 	stats "github.com/ngaut/gostats"

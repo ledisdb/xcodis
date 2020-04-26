@@ -9,7 +9,7 @@ package main
 // 	"time"
 
 // 	"github.com/ngaut/zkhelper"
-// 	"github.com/siddontang/xcodis/models"
+// 	"github.com/ledisdb/xcodis/models"
 
 // 	"sync/atomic"
 

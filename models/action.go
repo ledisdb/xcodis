@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ledisdb/xcodis/utils"
 	"github.com/ngaut/zkhelper"
-	"github.com/siddontang/xcodis/utils"
 
 	"github.com/juju/errors"
 	"github.com/ngaut/go-zookeeper/zk"
@@ -41,7 +41,7 @@ type Action struct {
 	Desc      string      `json:"desc"`
 	Target    interface{} `json:"target"`
 	Ts        string      `json:"ts"` // timestamp
-	Receivers []string    `json:receivers`
+	Receivers []string    `json:"receivers"`
 }
 
 func GetWatchActionPath(productName string) string {

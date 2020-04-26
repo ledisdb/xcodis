@@ -4,7 +4,7 @@
 package group
 
 import (
-	"github.com/siddontang/xcodis/models"
+	"github.com/ledisdb/xcodis/models"
 
 	log "github.com/ngaut/logging"
 )

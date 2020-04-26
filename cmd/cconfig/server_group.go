@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/siddontang/xcodis/models"
+	"github.com/ledisdb/xcodis/models"
 
 	"github.com/docopt/docopt-go"
 	log "github.com/ngaut/logging"

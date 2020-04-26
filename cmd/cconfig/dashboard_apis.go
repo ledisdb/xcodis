@@ -10,8 +10,8 @@ package main
 // 	"sync"
 // 	"time"
 
-// 	"github.com/siddontang/xcodis/models"
-// 	"github.com/siddontang/xcodis/utils"
+// 	"github.com/ledisdb/xcodis/models"
+// 	"github.com/ledisdb/xcodis/utils"
 
 // 	"github.com/go-martini/martini"
 // 	"github.com/nu7hatch/gouuid"

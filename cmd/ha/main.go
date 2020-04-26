@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/siddontang/redis-failover/failover"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+
+	"github.com/ledisdb/redis-failover/failover"
 )
 
 var configFile = flag.String("config", "", "failover config file")

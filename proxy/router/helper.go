@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/siddontang/xcodis/utils"
+	"github.com/ledisdb/xcodis/utils"
 
-	// "github.com/siddontang/xcodis/models"
-	"github.com/siddontang/xcodis/proxy/parser"
-	"github.com/siddontang/xcodis/proxy/router/topology"
+	// "github.com/ledisdb/xcodis/models"
+	"github.com/ledisdb/xcodis/proxy/parser"
+	"github.com/ledisdb/xcodis/proxy/router/topology"
 
 	log "github.com/ngaut/logging"
 
